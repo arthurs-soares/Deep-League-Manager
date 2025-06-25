@@ -197,4 +197,3 @@ async function startBot() {
 
 // Inicia o bot quando o script é executado.
 startBot();
-// Teste de commit
