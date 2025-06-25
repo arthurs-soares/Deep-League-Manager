@@ -16,10 +16,6 @@
   "logChannelId": "1381049761821495366",
   "recentlyLeftUsers": [
     {
-      "userId": "1275180758335488111",
-      "leaveTimestamp": "2025-06-22T15:48:39.130Z"
-    },
-    {
       "userId": "847831371387764806",
       "leaveTimestamp": "2025-06-22T17:14:33.019Z"
     },
@@ -30,6 +26,10 @@
     {
       "userId": "692443525144379463",
       "leaveTimestamp": "2025-06-24T00:15:31.274Z"
+    },
+    {
+      "userId": "193801125244174337",
+      "leaveTimestamp": "2025-06-25T16:01:42.208Z"
     }
   ],
   "warTicketChannelId": "1381127424485621831",

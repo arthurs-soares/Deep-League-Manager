@@ -107,7 +107,7 @@ async function handleGuildPanelAddmemberSubmit(interaction, guildIdSafe, globalC
         }
     }
 
-    const memberObj = { id: member.id, username: member.user.username };
+    const memberObj = { id: member.id, username: member.user.username, joinedAt: new Date().toISOString() };
 
     const isAlreadyInMain = guild.mainRoster.some(m => m.id === member.id);
     const isAlreadyInSub = guild.subRoster.some(m => m.id === member.id);
