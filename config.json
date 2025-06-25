@@ -1,0 +1,46 @@
+{
+  "moderatorRoles": [
+    "1348060399219773440",
+    "1274456218794070044",
+    "1353770746660524123"
+  ],
+  "scoreOperatorRoles": [
+    "1358557290835218534",
+    "1274456218794070042",
+    "1341162654374297630"
+  ],
+  "embedColor": "#0099ff",
+  "botName": "Deep League Manager",
+  "guildLeaderRoleId": "1274456218756448281",
+  "guildCoLeaderRoleId": "1354091407480062065",
+  "logChannelId": "1381049761821495366",
+  "recentlyLeftUsers": [
+    {
+      "userId": "1275180758335488111",
+      "leaveTimestamp": "2025-06-22T15:48:39.130Z"
+    },
+    {
+      "userId": "847831371387764806",
+      "leaveTimestamp": "2025-06-22T17:14:33.019Z"
+    },
+    {
+      "userId": "707352080624517160",
+      "leaveTimestamp": "2025-06-22T17:54:13.902Z"
+    },
+    {
+      "userId": "692443525144379463",
+      "leaveTimestamp": "2025-06-24T00:15:31.274Z"
+    }
+  ],
+  "warTicketChannelId": "1381127424485621831",
+  "warTicketPanelMessageId": "",
+  "rankingChannelId": "1351319262068998164",
+  "rankingMessageId": "1381044693902561352",
+  "guildRosterForumChannelId": "1382070300686024715",
+  "_id": "global_config",
+  "guildViewChannel": "1274456220018802731",
+  "leaderboard": {
+    "channelId": "1351319262068998164",
+    "messageId": "1380651300898996437"
+  }
+}
