@@ -1,8 +1,9 @@
 // handlers/interactionHandler.js
 // Módulo central para o tratamento e roteamento de todas as interações do Discord.
 
-const { InteractionType, MessageComponentInteraction } = require('discord.js'); 
-const { handleError } = require('../utils/errorHandler'); // Importa o handler de erros (caminho relativo à raiz)
+const { InteractionType, MessageFlags } = require('discord.js');
+const { handleError } = require('../../utils/errorHandler'); // Caminho relativo à raiz
+const { autocompleteGuilds } = require('../utils/autocompleteHelper'); // <-- 1. IMPORTAR O NOVO HELPER
 
 /**
  * Manipula todas as interações do Discord (comandos slash, botões, menus de seleção, modais).
@@ -22,6 +23,7 @@ async function handleInteraction(interaction, client, globalConfig) {
             }
             await command.execute(interaction, client, globalConfig); 
         }
+
         // --- Botões ---
         else if (interaction.isButton()) {
             // Roteamento baseado no Custom ID do botão. A ordem é importante para IDs mais específicos.
