@@ -80,6 +80,9 @@ const boostHandler = require('./events/boostHandler');
 // Handler do perfil de usuário
 const { loadUserProfile, saveUserProfile } = require('./db/userProfileDb');
 
+// Importa o handler de times
+const { loadTeamByName, loadAllTeams, saveTeamData, deleteTeamByName, isUserInAnyTeam } = require('./db/teamDb');
+
 
 module.exports = {
     // Funções de Banco de Dados
@@ -168,5 +171,12 @@ module.exports = {
 
     // Handlers para sair da guilda
     handleProfileLeaveGuild,        
-    handleConfirmLeaveGuild 
+    handleConfirmLeaveGuild, 
+
+    // Funções do banco de dados para times
+    loadTeamByName,
+    loadAllTeams,
+    saveTeamData,
+    deleteTeamByName,
+    isUserInAnyTeam,
 };
