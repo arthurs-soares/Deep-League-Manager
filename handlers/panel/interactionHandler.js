@@ -19,6 +19,9 @@ function capitalize(str) {
 // A função handler será chamada com (interaction, client, globalConfig, ...argsExtraidosDoCustomId)
 
 const buttonHandlers = new Map([
+    // Botões de siar da guilda
+    ['profile_leave_guild_', 'handleProfileLeaveGuild'], 
+    ['confirm_leave_guild_', 'handleConfirmLeaveGuild'], 
     // War Ticket Buttons
     ['pull_war_ticket', 'handleWarTicketButton'],
     ['war_accept', 'handleWarAcceptButton'],
@@ -59,61 +62,112 @@ const modalSubmitHandlers = new Map([
 
 async function routeButtonInteraction(interaction, client, globalConfig) {
     const customId = interaction.customId;
+    console.log(`[DEBUG InteractionHandler] Roteando botão: ${customId}`);
 
-    for (const [prefix, handlerName] of buttonHandlers.entries()) {
+    // ---- Roteamento para botões com IDs que terminam em um parâmetro (ex: ID da guilda) ----
+    const prefixMap = {
+        'profile_leave_guild_': 'handleProfileLeaveGuild',
+        'confirm_leave_guild_': 'handleConfirmLeaveGuild',
+        'guildpanel_edit_': 'handleGuildPanelEdit', // Exemplo de outro
+        'guildpanel_setcoleader_': 'handleGuildPanelSetcoleader', // Exemplo
+        'guildpanel_transferleader_': 'handleGuildPanelTransferleader', // Exemplo
+        'guildpanel_manage_rosters_dropdown_': 'handleGuildPanelManageRosters_Initial',
+        // Adicione outros prefixos que levam a um handler específico aqui
+    };
+
+    for (const prefix in prefixMap) {
         if (customId.startsWith(prefix)) {
+            const handlerName = prefixMap[prefix];
             const handler = client.guildPanelHandlers[handlerName];
+            
             if (typeof handler === 'function') {
-                console.log(`[DEBUG InteractionHandler] Routing button "${customId}" to ${handlerName}`);
-                // Passa a interação, client, globalConfig e o customId completo para o handler
-                // O handler é responsável por extrair os args específicos do customId se necessário
-                await handler(interaction, client, globalConfig, customId);
-                return true; // Interação tratada
+                // Extrai o parâmetro do final do customId (ex: o ID da guilda)
+                const parameter = customId.substring(prefix.length);
+                console.log(`[DEBUG InteractionHandler] Roteando "${customId}" para ${handlerName} com parâmetro "${parameter}"`);
+                // Chama o handler com o parâmetro extraído
+                await handler(interaction, parameter, globalConfig, client);
+                return; // Interação tratada, sai da função
             } else {
-                console.error(`[ERROR InteractionHandler] Handler "${handlerName}" not found for button "${customId}".`);
-                // Fallback: Tenta responder se não foi deferido/respondido
-                 if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: `❌ Erro interno: Handler para este botão não encontrado (${handlerName}).`, flags: MessageFlags.Ephemeral });
+                console.error(`[ERROR InteractionHandler] Handler "${handlerName}" não encontrado para o prefixo "${prefix}".`);
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({ content: `❌ Erro interno: Handler para esta ação não configurado (${handlerName}).`, ephemeral: true });
                 }
-                return true; // Considera tratada para evitar o aviso final
+                return;
             }
         }
     }
 
-    // Se nenhum prefixo correspondeu
+    // ---- Roteamento para botões com IDs exatos (sem parâmetros) ----
+    const exactIdMap = {
+        'cancel_leave_guild': async (interaction) => {
+            await interaction.update({ content: 'ℹ️ Ação de sair da guilda foi cancelada.', components: [], embeds: [] });
+        },
+        'pull_war_ticket': client.guildPanelHandlers.handleWarTicketButton,
+        'war_accept': client.guildPanelHandlers.handleWarAcceptButton,
+        'war_request_dodge': client.guildPanelHandlers.handleWarRequestDodgeButton,
+        // Adicione outros botões de ID exato aqui
+    };
+
+    if (exactIdMap[customId]) {
+        const handler = exactIdMap[customId];
+        if (typeof handler === 'function') {
+            console.log(`[DEBUG InteractionHandler] Roteando ID exato "${customId}"`);
+            await handler(interaction, globalConfig, client); // Passa os parâmetros padrão
+            return;
+        }
+    }
+    
+    // ---- Roteamento Genérico/Fallback (se necessário, como para os rounds de war) ----
+    if (customId.startsWith('war_round_win_')) {
+        const handler = client.guildPanelHandlers.handleWarRoundButton;
+        if (typeof handler === 'function') {
+            console.log(`[DEBUG InteractionHandler] Roteando ID genérico de war round: "${customId}"`);
+            // Este handler específico sabe como parsear seu próprio customId complexo
+            await handler(interaction, client, globalConfig);
+            return;
+        }
+    }
+
+
+    // Se nenhum handler foi encontrado
     console.warn(`⚠️ CustomId de botão não tratado: ${customId}`);
-    // Não responde aqui, pois o handler pode ter deferido/respondido e falhado depois.
-    // O try/catch geral ou handlers específicos devem lidar com falhas após defer/reply.
-    return false; // Interação não tratada por nenhum handler mapeado
+    if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({ content: `❌ Ação de botão não reconhecida.`, ephemeral: true });
+    }
 }
 
 async function routeSelectMenuInteraction(interaction, client, globalConfig) {
     const customId = interaction.customId;
-    console.log(`[DEBUG InteractionHandler] Routing select menu "${customId}"`);
+    console.log(`[DEBUG InteractionHandler] Roteando select menu "${customId}"`);
 
-    for (const [prefix, handlerName] of selectMenuHandlers.entries()) {
+    const prefixMap = {
+        'manage_rosters_action_select_': 'handleGuildPanelManageRosters_SelectAction',
+        'roster_select_type_': 'handleGuildPanelTrocarJogador_RosterSelect',
+        'manageplayer_user_select_': 'handleGuildPanelManagePlayer_SelectUser',
+        'manageplayer_roster_type_select_': 'handleGuildPanelManagePlayer_SelectRosterType',
+    };
+
+    for (const prefix in prefixMap) {
         if (customId.startsWith(prefix)) {
+            const handlerName = prefixMap[prefix];
             const handler = client.guildPanelHandlers[handlerName];
+            
             if (typeof handler === 'function') {
-                 console.log(`[DEBUG InteractionHandler] Routing select menu "${customId}" to ${handlerName}`);
-                // Passa a interação, client, globalConfig e o customId completo
-                await handler(interaction, client, globalConfig, customId);
-                return true; // Interação tratada
+                const parameter = customId.substring(prefix.length);
+                console.log(`[DEBUG InteractionHandler] Roteando "${customId}" para ${handlerName} com parâmetro "${parameter}"`);
+                await handler(interaction, parameter, globalConfig, client);
+                return;
             } else {
-                console.error(`[ERROR InteractionHandler] Handler "${handlerName}" not found for select menu "${customId}".`);
-                 if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: `❌ Erro interno: Handler para este menu não encontrado (${handlerName}).`, flags: MessageFlags.Ephemeral });
+                console.error(`[ERROR InteractionHandler] Handler "${handlerName}" não encontrado para o prefixo de menu "${prefix}".`);
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({ content: `❌ Erro interno: Handler para este menu não encontrado (${handlerName}).`, ephemeral: true });
                 }
-                return true; // Considera tratada
+                return;
             }
         }
     }
 
     console.warn(`⚠️ CustomId de menu de seleção não tratado: ${customId}`);
-     if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({ content: `❌ Ação de menu não reconhecida: ${customId}. (IH_SM_UT)`, flags: MessageFlags.Ephemeral });
-    }
-    return false;
 }
 
 async function routeModalSubmitInteraction(interaction, client, globalConfig) {
@@ -233,13 +287,20 @@ async function handleGuildPanelButton(interaction, client, globalConfig, customI
     const finalHandler = client.guildPanelHandlers[finalHandlerName];
 
     if (typeof finalHandler === 'function') {
-        // The final handler (e.g., handleGuildPanelEdit, handleGuildPanelSetcoleader)
-        // expects (interaction, guildIdSafeOrMongoId, globalConfig, client)
+        // A lógica do manipulador para extrair o guildId precisa ser robusta.
+        // Vamos passar o ID extraído diretamente.
         await finalHandler(interaction, guildIdSafeOrMongoId, globalConfig, client);
     } else {
-        console.error(`[ERROR handleGuildPanelButton] Final handler "${finalHandlerName}" not found for customId "${customId}".`);
-        if (!interaction.replied && !interaction.deferred) {
-            await interaction.reply({ content: `❌ Erro interno: Handler final para ação de painel "${action}" não configurado.`, flags: MessageFlags.Ephemeral });
+        // Tenta um manipulador mais genérico que pode lidar com o prefixo
+        const genericHandlerName = `handle${capitalize(parts[0])}${capitalize(action)}`;
+        const genericHandler = client.guildPanelHandlers[genericHandlerName];
+        if (typeof genericHandler === 'function') {
+            await genericHandler(interaction, guildIdSafeOrMongoId, globalConfig, client);
+        } else {
+            console.error(`[ERROR handleGuildPanelButton] Final handler "${finalHandlerName}" or "${genericHandlerName}" not found for customId "${customId}".`);
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ content: `❌ Erro interno: Handler final para ação de painel "${action}" não configurado.`, flags: MessageFlags.Ephemeral });
+            }
         }
     }
 }

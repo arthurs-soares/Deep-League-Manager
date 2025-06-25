@@ -1,15 +1,13 @@
 // commands/perfil.js
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { isUserInAnyGuild } = require('../handlers/db/guildDb');
 const { loadUserProfile } = require('../handlers/db/userProfileDb');
-const { resolveDisplayColor } = require('../handlers/utils/constants'); // <-- 1. IMPORTAR NOSSO HELPER
+const { resolveDisplayColor } = require('../handlers/utils/constants');
 const humanizeDuration = require('humanize-duration');
 
 function formatCooldown(ms) {
     if (ms <= 0) return "alguns instantes";
-    return humanizeDuration(ms, {
-        language: 'pt', largest: 2, round: true, conjunction: ' e ', serialComma: false,
-    });
+    return humanizeDuration(ms, { language: 'pt', largest: 2, round: true, conjunction: ' e ', serialComma: false });
 }
 
 module.exports = {
@@ -25,6 +23,7 @@ module.exports = {
         await interaction.deferReply();
 
         const targetUserOption = interaction.options.getUser('usuario');
+        const isSelfProfile = !targetUserOption || targetUserOption.id === interaction.user.id;
         const targetUser = targetUserOption || interaction.user;
         const targetMember = await interaction.guild.members.fetch(targetUser.id);
         
@@ -36,10 +35,7 @@ module.exports = {
             .setTimestamp();
         
         let description = userProfile.bio ? `> ${userProfile.bio}` : `Perfil público de ${targetUser.toString()}.`;
-
-        if (userProfile.bannerUrl) {
-            profileEmbed.setImage(userProfile.bannerUrl);
-        }
+        if (userProfile.bannerUrl) profileEmbed.setImage(userProfile.bannerUrl);
 
         const personalWins = userProfile.personalScore.wins || 0;
         const personalLosses = userProfile.personalScore.losses || 0;
@@ -47,10 +43,12 @@ module.exports = {
         const personalWinRate = personalTotalGames > 0 ? Math.round((personalWins / personalTotalGames) * 100) : 0;
 
         profileEmbed.addFields({
-            name: 'Estatísticas de Combate Pessoal',
-            value: `**Score:** ${personalWins}V / ${personalLosses}D\n**Aproveitamento:** ${personalWinRate}%`,
+            name: '🏆 Histórico de Carreira (Todas as Guildas)',
+            value: `**Score Pessoal:** ${personalWins}V / ${personalLosses}D\n**Aproveitamento Geral:** ${personalWinRate}%`,
             inline: false
         });
+
+        const components = []; // Array para armazenar os botões
 
         if (userGuild) {
             let userRole = 'Membro';
@@ -70,7 +68,6 @@ module.exports = {
             description += `\n\nAtualmente faz parte da guilda **[${userGuild.name}](https://discord.com/channels/${interaction.guild.id})**.`;
 
             profileEmbed
-                // v-- 2. USAR O HELPER AQUI --v
                 .setColor(resolveDisplayColor(userGuild.color, globalConfig))
                 .setThumbnail(userGuild.logo || null)
                 .addFields(
@@ -78,20 +75,32 @@ module.exports = {
                     { name: 'Lealdade', value: loyaltyString, inline: true },
                     { name: 'Status', value: '🟢 **Ativo**', inline: true }
                 );
+
+            // <-- LÓGICA DO BOTÃO -->
+            // Adiciona o botão "Sair da Guilda" apenas se o usuário está vendo o próprio perfil
+            if (isSelfProfile) {
+                const leaveGuildButton = new ButtonBuilder()
+                    .setCustomId(`profile_leave_guild_${userGuild.id}`) // Passa o ID da guilda no customId
+                    .setLabel('Sair da Guilda')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('🚪');
+                
+                const row = new ActionRowBuilder().addComponents(leaveGuildButton);
+                components.push(row);
+            }
+            
         } else {
+            // Lógica para quando não está em guilda (sem alterações)
             description += `\n\nAtualmente não faz parte de nenhuma guilda.`;
             profileEmbed.setColor('#3498DB');
-            
             const COOLDOWN_DAYS = 3;
             const recentlyLeftUser = globalConfig.recentlyLeftUsers.find(u => u.userId === targetUser.id);
             if (recentlyLeftUser) {
                 const COOLDOWN_MILLISECONDS = COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
                 const leaveTime = new Date(recentlyLeftUser.leaveTimestamp).getTime();
                 const cooldownEndTime = leaveTime + COOLDOWN_MILLISECONDS;
-
                 if (Date.now() < cooldownEndTime) {
-                    profileEmbed.setColor('#E67E22');
-                    profileEmbed.addFields(
+                    profileEmbed.setColor('#E67E22').addFields(
                         { name: 'Status', value: '⏳ **Em Cooldown**', inline: true },
                         { name: 'Tempo Restante', value: formatCooldown(cooldownEndTime - Date.now()), inline: true }
                     );
@@ -104,7 +113,6 @@ module.exports = {
         }
         
         profileEmbed.setDescription(description);
-
-        await interaction.editReply({ embeds: [profileEmbed] });
+        await interaction.editReply({ embeds: [profileEmbed], components: components });
     },
 };

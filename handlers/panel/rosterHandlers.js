@@ -5,7 +5,7 @@ const { saveConfig } = require('../db/configDb');
 const { sendLogMessage } = require('../utils/logManager');                              
 const { getAndValidateGuild } = require('../utils/validation');                         
 const { manageGuildForumPost } = require('../../utils/guildForumPostManager'); // NOVO: manageGuildForumPost importado
-
+const { loadGuildById } = require('../db/guildDb');
 
 const COOLDOWN_DAYS = 3; 
 const MAX_ROSTER_SIZE = 5; 
@@ -422,36 +422,26 @@ async function handleGuildPanelTrocarJogador_Initial(interaction, guildIdSafe, g
     try {
         const guild = await getAndValidateGuild(guildIdSafe, interaction, globalConfig, client, loadGuildByName, false, true);
         if (!guild) {
-            console.log(`[DIAGNÓSTICO SLOT] handleGuildPanelTrocarJogador_Initial: Guilda inválida ou sem permissão.`);
-            return { content: `❌ Guilda "${guildIdSafe}" não encontrada ou você não tem permissão para editá-la.`, flags: MessageFlags.Ephemeral };
+            return { error: true, content: `❌ Guilda "${guildIdSafe}" não encontrada ou você não tem permissão para editá-la.`, flags: MessageFlags.Ephemeral };
         }
 
         const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId(`roster_select_type_${guildIdSafe}`) 
+            .setCustomId(`roster_select_type_${guildIdSafe}`)
             .setPlaceholder('Escolha qual roster deseja editar...');
 
         selectMenu.addOptions([
-                {
-                    label: 'Roster Principal',
-                    description: 'Edite os jogadores do Roster Principal (slots 1-5).',
-                    value: 'main',
-                    emoji: '🛡️',
-                },
-                {
-                    label: 'Roster Reserva',
-                    description: 'Edite os jogadores do Roster Reserva (slots 1-5).',
-                    value: 'sub',
-                    emoji: '⚔️',
-                },
+                { label: 'Roster Principal', description: 'Edite os jogadores do Roster Principal (slots 1-5).', value: 'main', emoji: '🛡️' },
+                { label: 'Roster Reserva', description: 'Edite os jogadores do Roster Reserva (slots 1-5).', value: 'sub', emoji: '⚔️' },
             ]);
 
         const row = new ActionRowBuilder().addComponents(selectMenu);
 
         console.log(`[DIAGNÓSTICO SLOT] handleGuildPanelTrocarJogador_Initial: Retornando menu de seleção de roster.`);
-        return { type: 'content', content: `Qual roster de **${guild.name}** você gostaria de editar por slot?`, components: [row], flags: MessageFlags.Ephemeral }; 
+        // RETORNA OS DADOS EM VEZ DE RESPONDER
+        return { type: 'content', content: `Qual roster de **${guild.name}** você gostaria de editar por slot?`, components: [row], flags: MessageFlags.Ephemeral };
     } catch (error) {
         console.error(`❌ [DIAGNÓSTICO SLOT] ERRO FATAL em handleGuildPanelTrocarJogador_Initial:`, error);
-        return { content: `❌ Ocorreu um erro ao iniciar a edição por slot. Detalhes: ${error.message}`, flags: MessageFlags.Ephemeral };
+        return { error: true, content: `❌ Ocorreu um erro ao iniciar a edição por slot. Detalhes: ${error.message}`, flags: MessageFlags.Ephemeral };
     }
 }
 
@@ -460,51 +450,44 @@ async function handleGuildPanelTrocarJogador_Initial(interaction, guildIdSafe, g
 async function handleGuildPanelTrocarJogador_RosterSelect(interaction, guildIdSafe, globalConfig, client) {
     console.log(`[DIAGNÓSTICO SLOT] handleGuildPanelTrocarJogador_RosterSelect INICIADO para guilda: ${guildIdSafe}, rosterType: ${interaction.values[0]}`);
     try {
-        const rosterType = interaction.values[0]; 
-        const guild = await getAndValidateGuild(guildIdSafe, interaction, globalConfig, client, loadGuildByName, false, true);
+        const rosterType = interaction.values[0];
+        const guild = await loadGuildByName(guildIdSafe.replace(/-/g, ' '));
         if (!guild) {
-            console.log(`[DIAGNÓSTICO SLOT] handleGuildPanelTrocarJogador_RosterSelect: Guilda inválida ou sem permissão.`);
-            return { content: `❌ Guilda "${guildIdSafe}" não encontrada ou você não tem permissão para editá-la.`, flags: MessageFlags.Ephemeral };
+            // Se a guilda não for encontrada, precisamos responder com um erro.
+            return interaction.reply({ content: '❌ Guilda não encontrada. A operação foi cancelada.', ephemeral: true });
         }
 
         const modal = new ModalBuilder()
-            .setCustomId(`roster_edit_modal_${rosterType}_${guildIdSafe}`) 
+            .setCustomId(`roster_edit_modal_${rosterType}_${guildIdSafe}`)
             .setTitle(`Editar Roster ${rosterType === 'main' ? 'Principal' : 'Reserva'} - ${guild.name}`);
 
         const currentRoster = rosterType === 'main' ? guild.mainRoster : guild.subRoster;
 
         for (let i = 0; i < MAX_ROSTER_SIZE; i++) {
-            const playerId = currentRoster[i]?.id || '';
-            let displayValue = playerId; 
-
-            if (playerId) {
-                try {
-                    const user = await client.users.fetch(playerId);
-                    displayValue = `@${user.username}`; 
-                } catch (error) {
-                    console.warn(`Não foi possível buscar usuário para ID ${playerId} em roster modal:`, error.message);
-                    // Continua com o ID se não conseguir buscar o username
-                }
-            }
-
+            const playerInfo = currentRoster[i] || { id: '', username: '' };
+            
             modal.addComponents(
                 new ActionRowBuilder().addComponents(
                     new TextInputBuilder()
-                        .setCustomId(`${rosterType}_slot_${i + 1}`) 
+                        .setCustomId(`${rosterType}_slot_${i + 1}`)
                         .setLabel(`Slot ${i + 1} (ID ou @Menção)`)
                         .setStyle(TextInputStyle.Short)
-                        .setPlaceholder("Deixe vazio para remover. ID ou @ menção.")
+                        .setPlaceholder("Deixe vazio para remover.")
                         .setRequired(false)
-                        .setValue(displayValue) 
+                        .setValue(playerInfo.id ? `<@${playerInfo.id}>` : '') // Sempre usa menção ou vazio
                 )
             );
         }
         
-        console.log(`[DIAGNÓSTICO SLOT] handleGuildPanelTrocarJogador_RosterSelect: Retornando modal para edição de slots.`);
-        return { type: 'modal', data: modal }; 
+        console.log(`[DIAGNÓSTICO SLOT] handleGuildPanelTrocarJogador_RosterSelect: Mostrando modal para edição de slots.`);
+        // A função agora responde diretamente à sua própria interação com o modal.
+        await interaction.showModal(modal);
+
     } catch (error) {
         console.error(`❌ [DIAGNÓSTICO SLOT] ERRO FATAL em handleGuildPanelTrocarJogador_RosterSelect:`, error);
-        return { content: `❌ Ocorreu um erro ao preparar o formulário de edição por slot. Detalhes: ${error.message}`, flags: MessageFlags.Ephemeral };
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: `❌ Ocorreu um erro ao preparar o formulário de edição por slot.`, ephemeral: true });
+        }
     }
 }
 
@@ -715,177 +698,147 @@ async function handleGuildPanelTrocarJogador_RosterSubmit(interaction, guildIdSa
 // --- NOVO FLUXO: GERENCIAR ROSTERS VIA DROPDOWN (SUBSTITUI GERENCIAR MEMBRO DIRETO E EDITAR POR SLOT) ---
 
 // handler para o botão "Gerenciar Rosters" no painel da guilda
-async function handleGuildPanelManageRosters_Initial(interaction, client, globalConfig, customId) { 
-    // customId format: guildpanel_manage_rosters_dropdown_GUILDIDSAFE
-    const parts = customId.split('_');
-    if (parts.length < 5 || parts[0] !== 'guildpanel' || parts[1] !== 'manage' || parts[2] !== 'rosters' || parts[3] !== 'dropdown') {
-        console.error(`[DIAGNÓSTICO DROPDOWN] handleGuildPanelManageRosters_Initial: Invalid customId format: ${customId}`);
-        return interaction.reply({ content: '❌ Erro interno: ID de botão de gerenciamento de rosters inválido.', flags: MessageFlags.Ephemeral });
-    }
-    const guildIdSafe = parts.slice(4).join('_');
+async function handleGuildPanelManageRosters_Initial(interaction, guildIdSafe, globalConfig, client) { 
     console.log(`[DIAGNÓSTICO DROPDOWN] handleGuildPanelManageRosters_Initial INICIADO para guilda: ${guildIdSafe}`);
     try {
         const guild = await getAndValidateGuild(guildIdSafe, interaction, globalConfig, client, loadGuildByName, false, true);
         if (!guild) {
             console.log(`[DIAGNÓSTICO DROPDOWN] handleGuildPanelManageRosters_Initial: Guilda inválida ou sem permissão.`);
-            return; // getAndValidateGuild já respondeu
+            return; 
         }
 
+        // ---- CORREÇÃO AQUI ----
+        // Criamos o menu e já definimos todas as suas propriedades, incluindo as opções, de uma só vez.
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId(`manage_rosters_action_select_${guildIdSafe}`)
-            .setPlaceholder('Escolha uma ação de gerenciamento de roster...');
+            .setPlaceholder('Escolha uma ação de gerenciamento de roster...')
+            .addOptions(
+                {
+                    label: 'Adicionar Membro (Selecionar)',
+                    description: 'Adiciona um novo membro à guilda (via seleção de usuário).',
+                    value: 'add_member_select',
+                    emoji: '➕',
+                },
+                {
+                    label: 'Remover Membro (Selecionar)',
+                    description: 'Remove um membro da guilda (via seleção de usuário).',
+                    value: 'remove_member_select',
+                    emoji: '➖',
+                },
+                {
+                    label: 'Mover Membro (Principal/Reserva)',
+                    description: 'Move um membro entre o roster principal e reserva.',
+                    value: 'move_member_select',
+                    emoji: '↔️',
+                },
+                {
+                    label: 'Editar Rosters por Slot (Manual)',
+                    description: 'Edita rosters slot a slot, usando IDs ou menções.',
+                    value: 'edit_by_slot',
+                    emoji: '📝',
+                },
+                {
+                    label: 'Adicionar Membros em Massa (IDs)',
+                    description: 'Adiciona múltiplos membros de uma vez, via lista de IDs.',
+                    value: 'bulk_add',
+                    emoji: '📤',
+                }
+            );
 
-        selectMenu.addOptions([
-            {
-                label: 'Adicionar Membro (Selecionar)',
-                description: 'Adiciona um novo membro à guilda (via seleção de usuário).',
-                value: 'add_member_select',
-                emoji: '➕',
-            },
-            {
-                label: 'Remover Membro (Selecionar)',
-                description: 'Remove um membro da guilda (via seleção de usuário).',
-                value: 'remove_member_select',
-                emoji: '➖',
-            },
-            {
-                label: 'Mover Membro (Principal/Reserva)',
-                description: 'Move um membro entre o roster principal e reserva (via seleção de usuário).',
-                value: 'move_member_select',
-                emoji: '↔️',
-            },
-            {
-                label: 'Editar Rosters por Slot (Manual)',
-                description: 'Edita rosters slot a slot, usando IDs ou menções (abre modal).',
-                value: 'edit_by_slot',
-                emoji: '📝',
-            },
-            {
-                label: 'Adicionar Membros em Massa (IDs)',
-                description: 'Adiciona múltiplos membros de uma vez, via lista de IDs/menções (abre modal).',
-                value: 'bulk_add',
-                emoji: '📤',
-            },
-        ]);
+        const row = new ActionRowBuilder().addComponents(selectMenu);
 
-    const row = new ActionRowBuilder().addComponents(selectMenu);
+        await interaction.reply({
+            content: `Qual operação de roster você deseja realizar para **${guild.name}**?`,
+            components: [row],
+            flags: MessageFlags.Ephemeral, 
+        });
 
-    await interaction.reply({
-        content: `Qual operação de roster você deseja realizar para **${guild.name}**?`,
-        components: [row],
-        flags: MessageFlags.Ephemeral, 
-    });
-    console.log(`[DIAGNÓSTICO DROPDOWN] handleGuildPanelManageRosters_Initial: Menu de seleção de ação enviado.`);
+        console.log(`[DIAGNÓSTICO DROPDOWN] handleGuildPanelManageRosters_Initial: Menu de seleção de ação enviado.`);
     } catch (error) {
-        console.error(`❌ [DIAGNÓSTICO DROPDOWN] ERRO FATAL em handleGuildPanelManageRosters_Initial:`, error);
-        // Não é necessário um return aqui, pois o handleError já lida com a resposta da interação se ela falhar.
-        // O handleError é invocado pelo interactionHandler (que chama esta função), então ele se encarregará da resposta final ao usuário.
+        // Log do erro completo para depuração
+        console.error('❌ [DIAGNÓSTICO DROPDOWN] ERRO FATAL em handleGuildPanelManageRosters_Initial:', error);
+        
+        // Tenta responder ao usuário se a interação ainda não foi respondida
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({
+                content: '❌ Ocorreu um erro ao gerar o menu de gerenciamento de rosters. Por favor, tente novamente.',
+                ephemeral: true
+            }).catch(e => console.error("Falha ao enviar mensagem de erro de fallback:", e));
+        } else {
+             await interaction.followUp({
+                content: '❌ Ocorreu um erro ao gerar o menu de gerenciamento de rosters. Por favor, tente novamente.',
+                ephemeral: true
+            }).catch(e => console.error("Falha ao enviar mensagem de erro de fallback (followUp):", e));
+        }
     }
 }
+
 
 // handler para a seleção do dropdown "Gerenciar Rosters"
-async function handleGuildPanelManageRosters_SelectAction(interaction, client, globalConfig, customId) { 
-    console.log(`[DIAGNÓSTICO DROPDOWN] handleGuildPanelManageRosters_SelectAction INICIADO. Ação selecionada: ${interaction.values[0]}`);
+// Substitua a função inteira em handlers/panel/rosterHandlers.js
+
+// Substitua esta função também em rosterHandlers.js
+
+async function handleGuildPanelManageRosters_SelectAction(interaction, guildIdSafe, globalConfig, client) {
+    console.log(`[DIAGNÓSTICO DROPDOWN] Ação selecionada: ${interaction.values[0]}`);
+    const action = interaction.values[0];
+
     try {
-        const action = interaction.values[0]; 
-        // customId format: manage_rosters_action_select_GUILDIDSAFE
-        const parts = customId.split('_');
-        if (parts.length < 5) {
-            console.error(`[DIAGNÓSTICO DROPDOWN] Invalid customId format for manage_rosters_action_select: ${customId}`);
-            return interaction.reply({ content: '❌ Erro interno: ID de ação de roster inválido.', flags: MessageFlags.Ephemeral });
+        // Ação de modal é tratada sem defer
+        if (action === 'bulk_add') {
+            const bulkAddResult = await handleGuildPanelBulkaddmember(interaction, guildIdSafe, globalConfig, client);
+            if (bulkAddResult && bulkAddResult.type === 'modal') {
+                return await interaction.showModal(bulkAddResult.data);
+            }
         }
-        const guildIdSafe = parts.slice(4).join('_');
+        
+        // Para todas as outras ações, usamos deferUpdate.
+        await interaction.deferUpdate();
+
+        // Para "Editar por Slot", agora chamamos a função que retorna os componentes.
+        if (action === 'edit_by_slot') {
+            // Esta função retorna os componentes do próximo passo (selecionar main/sub)
+            const slotResult = await handleGuildPanelTrocarJogador_Initial(interaction, guildIdSafe, globalConfig, client);
+            if (slotResult && !slotResult.error) {
+                return await interaction.editReply(slotResult);
+            } else if (slotResult && slotResult.error) {
+                return await interaction.editReply({ content: slotResult.content, components: [] });
+            }
+        }
+        
+        // Lógica para os menus de seleção de usuário.
         const guild = await getAndValidateGuild(guildIdSafe, interaction, globalConfig, client, loadGuildByName, false, true);
-        if (!guild) {
-            console.log(`[DIAGNÓSTICO DROPDOWN] handleGuildPanelManageRosters_SelectAction: Guilda inválida ou sem permissão.`);
-            return; // getAndValidateGuild já respondeu
-        }
+        if (!guild) return;
 
-        // A resposta será enviada aqui, sem updates prévios para evitar InteractionAlreadyReplied para modais.
+        let responseOptions = { content: '', components: [], embeds: [], flags: MessageFlags.Ephemeral };
 
-        switch (action) {
+        switch(action) {
             case 'add_member_select':
-                console.log(`[DIAGNÓSTICO DROPDOWN] Ação: Adicionar Membro (Seleção).`);
-                const addMemberSelectMenu = new UserSelectMenuBuilder()
-                    .setCustomId(`manageplayer_user_select_add_${guildIdSafe}`)
-                    .setPlaceholder('Selecione o membro para adicionar')
-                    .setMaxValues(1);
-                const addMemberRow = new ActionRowBuilder().addComponents(addMemberSelectMenu);
-                await interaction.reply({ 
-                    content: `Selecione o membro para **adicionar** à guilda **${guild.name}**:`,
-                    components: [addMemberRow],
-                    flags: MessageFlags.Ephemeral, 
-                });
-                console.log(`[DIAGNÓSTICO DROPDOWN] Menu de seleção de usuário 'Adicionar' enviado.`);
+                responseOptions.content = `Selecione o membro para **adicionar** à guilda **${guild.name}**:`;
+                responseOptions.components.push(new ActionRowBuilder().addComponents(new UserSelectMenuBuilder().setCustomId(`manageplayer_user_select_add_${guildIdSafe}`).setPlaceholder('Selecione o membro para adicionar')));
                 break;
-
             case 'remove_member_select':
-                console.log(`[DIAGNÓSTICO DROPDOWN] Ação: Remover Membro (Seleção).`);
-                const removeMemberSelectMenu = new UserSelectMenuBuilder()
-                    .setCustomId(`manageplayer_user_select_remove_${guildIdSafe}`)
-                    .setPlaceholder('Selecione o membro para remover')
-                    .setMaxValues(1);
-                const removeMemberRow = new ActionRowBuilder().addComponents(removeMemberSelectMenu);
-                await interaction.reply({ 
-                    content: `Selecione o membro para **remover** da guilda **${guild.name}**:`,
-                    components: [removeMemberRow],
-                    flags: MessageFlags.Ephemeral, 
-                });
-                console.log(`[DIAGNÓSTICO DROPDOWN] Menu de seleção de usuário 'Remover' enviado.`);
+                responseOptions.content = `Selecione o membro para **remover** da guilda **${guild.name}**:`;
+                responseOptions.components.push(new ActionRowBuilder().addComponents(new UserSelectMenuBuilder().setCustomId(`manageplayer_user_select_remove_${guildIdSafe}`).setPlaceholder('Selecione o membro para remover')));
                 break;
-
             case 'move_member_select':
-                console.log(`[DIAGNÓSTICO DROPDOWN] Ação: Mover Membro (Seleção).`);
-                const moveMemberSelectMenu = new UserSelectMenuBuilder()
-                    .setCustomId(`manageplayer_user_select_move_${guildIdSafe}`)
-                    .setPlaceholder('Selecione o membro para mover')
-                    .setMaxValues(1);
-                const moveMemberRow = new ActionRowBuilder().addComponents(moveMemberSelectMenu);
-                await interaction.reply({ 
-                    content: `Selecione o membro para **mover** na guilda **${guild.name}**:`,
-                    components: [moveMemberRow],
-                    flags: MessageFlags.Ephemeral, 
-                });
-                console.log(`[DIAGNÓSTICO DROPDOWN] Menu de seleção de usuário 'Mover' enviado.`);
-                break;
-
-            case 'edit_by_slot':
-                console.log(`[DIAGNÓSTICO DROPDOWN] Ação: Editar Rosters por Slot. Chamando handleGuildPanelTrocarJogador_Initial.`);
-                const slotResult = await handleGuildPanelTrocarJogador_Initial(interaction, guildIdSafe, globalConfig, client);
-                if (slotResult && slotResult.type === 'content') { 
-                    await interaction.reply(slotResult); 
-                    console.log(`[DIAGNÓSTICO DROPDOWN] handleGuildPanelTrocarJogador_Initial retornou conteúdo.`);
-                } else if (slotResult && slotResult.type === 'modal') { 
-                    await interaction.showModal(slotResult.data); 
-                    console.log(`[DIAGNÓSTICO DROPDOWN] handleGuildPanelTrocarJogador_Initial retornou modal. Modal exibido.`);
-                } else {
-                    console.error(`❌ [DIAGNÓSTICO DROPDOWN] handleGuildPanelManageRosters_SelectAction: handleGuildPanelTrocarJogador_Initial retornou resultado inesperado.`);
-                    await interaction.reply({ content: '❌ Erro ao iniciar edição por slot. Resultado inesperado.', flags: MessageFlags.Ephemeral }); 
-                }
-                break;
-
-            case 'bulk_add':
-                console.log(`[DIAGNÓSTICO DROPDOWN] Ação: Adicionar Membros em Massa. Chamando handleGuildPanelBulkaddmember.`);
-                const bulkAddResult = await handleGuildPanelBulkaddmember(interaction, guildIdSafe, globalConfig, client);
-                if (bulkAddResult && bulkAddResult.type === 'modal') {
-                    await interaction.showModal(bulkAddResult.data); 
-                    console.log(`[DIAGNÓSTICO DROPDOWN] handleGuildPanelBulkaddmember retornou modal. Modal exibido.`);
-                } else {
-                    console.error(`❌ [DIAGNÓSTICO DROPDOWN] handleGuildPanelManageRosters_SelectAction: handleGuildPanelBulkaddmember retornou resultado inesperado.`);
-                    await interaction.reply({ content: '❌ Erro ao iniciar adição em massa. Resultado inesperado.', flags: MessageFlags.Ephemeral }); 
-                }
-                break;
-
-            default:
-                console.warn(`⚠️ [DIAGNÓSTICO DROPDOWN] Ação de gerenciamento de roster inválida: ${action}.`);
-                await interaction.reply({ content: '❌ Ação de gerenciamento de roster inválida.', flags: MessageFlags.Ephemeral }); 
+                responseOptions.content = `Selecione o membro para **mover** na guilda **${guild.name}**:`;
+                responseOptions.components.push(new ActionRowBuilder().addComponents(new UserSelectMenuBuilder().setCustomId(`manageplayer_user_select_move_${guildIdSafe}`).setPlaceholder('Selecione o membro para mover')));
                 break;
         }
+
+        if (responseOptions.components.length > 0) {
+            await interaction.editReply(responseOptions);
+        }
+
     } catch (error) {
         console.error(`❌ [DIAGNÓSTICO DROPDOWN] ERRO FATAL em handleGuildPanelManageRosters_SelectAction:`, error);
-        throw error; 
+        if (interaction.deferred && !interaction.replied) {
+            await interaction.followUp({ content: '❌ Ocorreu um erro ao processar sua seleção.', ephemeral: true }).catch(() => {});
+        }
     }
 }
+
 // --- FLUXO DE GERENCIAR MEMBRO DIRETO (ADICIONAR/REMOVER/MOVER UM ÚNICO MEMBRO) ---
 // Estas funções são as mesmas que antes, mas agora são acionadas por dentro do fluxo de dropdown.
 async function handleGuildPanelManagePlayer_SelectUser(interaction, client, globalConfig, customId) { 
@@ -1155,6 +1108,98 @@ async function handleGuildPanelManagePlayer_SelectRosterType(interaction, client
     }
 }
 
+/**
+ * Lida com o clique do usuário no botão "Sair da Guilda" em seu próprio perfil.
+ * @param {ButtonInteraction} interaction - A interação do botão.
+ * @param {string} guildMongoId - O ID da guilda do qual o usuário quer sair.
+ * @param {Object} globalConfig - A configuração global do bot.
+ * @param {Client} client - A instância do bot.
+ */
+async function handleProfileLeaveGuild(interaction, guildMongoId, globalConfig, client) {
+    // Carrega a guilda pelo ID passado no customId do botão
+    const guild = await loadGuildById(guildMongoId);
+
+    // Validações
+    if (!guild) {
+        return interaction.reply({ content: '❌ A guilda da qual você está tentando sair não foi encontrada. Ela pode ter sido deletada.', ephemeral: true });
+    }
+    if (interaction.user.id === guild.leader?.id) {
+        return interaction.reply({ content: '❌ Você é o Líder desta guilda! Você não pode sair. Transfira a liderança primeiro usando o `/guilda-painel`.', ephemeral: true });
+    }
+    if (interaction.user.id === guild.coLeader?.id) {
+        return interaction.reply({ content: '❌ Você é o Vice-Líder desta guilda! Você não pode sair. Peça ao líder para removê-lo ou transferir o cargo.', ephemeral: true });
+    }
+
+    const isInMainRoster = guild.mainRoster.some(m => m.id === interaction.user.id);
+    const isInSubRoster = guild.subRoster.some(m => m.id === interaction.user.id);
+
+    if (!isInMainRoster && !isInSubRoster) {
+        return interaction.reply({ content: '❌ Você não está nos rosters desta guilda para poder sair. Contate um líder.', ephemeral: true });
+    }
+
+    // Se passou em todas as validações, mostra a confirmação final
+    const confirmButton = new ButtonBuilder().setCustomId(`confirm_leave_guild_${guildMongoId}`).setLabel('Sim, Quero Sair').setStyle(ButtonStyle.Danger);
+    const cancelButton = new ButtonBuilder().setCustomId('cancel_leave_guild').setLabel('Cancelar').setStyle(ButtonStyle.Secondary);
+    const row = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
+
+    await interaction.reply({
+        content: `Você tem certeza que deseja sair da guilda **${guild.name}**? Você entrará em um cooldown de 3 dias e não poderá se juntar a outra guilda neste período.`,
+        components: [row],
+        ephemeral: true,
+    });
+}
+
+// Adicione esta função também ao handlers/panel/rosterHandlers.js
+
+async function handleConfirmLeaveGuild(interaction, guildMongoId, globalConfig, client) {
+    await interaction.deferUpdate(); // Acknowledge o clique no botão
+
+    const guild = await loadGuildById(guildMongoId);
+    if (!guild) {
+        return interaction.editReply({ content: '❌ A guilda não foi encontrada. Ação cancelada.', components: [] });
+    }
+
+    // Remove o usuário dos rosters
+    guild.mainRoster = guild.mainRoster.filter(m => m.id !== interaction.user.id);
+    guild.subRoster = guild.subRoster.filter(m => m.id !== interaction.user.id);
+    guild.updatedAt = new Date().toISOString();
+    guild.updatedBy = interaction.user.id;
+
+    // Aplica o cooldown
+    const COOLDOWN_DAYS = 3;
+    const now = new Date();
+    globalConfig.recentlyLeftUsers = globalConfig.recentlyLeftUsers.filter(u => u.userId !== interaction.user.id);
+    globalConfig.recentlyLeftUsers.push({ userId: interaction.user.id, leaveTimestamp: now.toISOString() });
+    const threeDaysAgo = new Date(now.getTime() - (COOLDOWN_DAYS * 24 * 60 * 60 * 1000));
+    globalConfig.recentlyLeftUsers = globalConfig.recentlyLeftUsers.filter(u => new Date(u.leaveTimestamp) > threeDaysAgo);
+    
+    // Salva tudo
+    await saveGuildData(guild);
+    await saveConfig(globalConfig);
+
+    // Atualiza os painéis públicos
+    await manageGuildForumPost(client, guild, globalConfig, 'update', interaction);
+    client.emit('updateLeaderboard');
+
+    // Loga a ação
+    await sendLogMessage(
+        client, globalConfig, interaction,
+        'Saída de Guilda (Voluntária)',
+        `${interaction.user.tag} saiu da guilda **${guild.name}**.`,
+        [
+            { name: 'Guilda', value: guild.name, inline: true },
+            { name: 'Membro', value: interaction.user.toString(), inline: true },
+        ]
+    );
+
+    // Notifica o usuário e o líder da guilda (DM)
+    await interaction.editReply({ content: `✅ Você saiu da guilda **${guild.name}**.`, components: [] });
+    const leader = await client.users.fetch(guild.leader.id).catch(() => null);
+    if (leader) {
+        await leader.send(`ℹ️ O membro **${interaction.user.tag}** saiu voluntariamente da sua guilda, **${guild.name}**.`).catch(e => console.error("Não foi possível enviar DM para o líder.", e.message));
+    }
+}
+
 module.exports = {
     processRosterInput, 
 
@@ -1178,4 +1223,8 @@ module.exports = {
     // SUB-FUNÇÕES DO FLUXO DE GERENCIAMENTO DIRETO
     handleGuildPanelManagePlayer_SelectUser,    
     handleGuildPanelManagePlayer_SelectRosterType, 
+
+    // Handler de sair da guilda pessoalmente
+    handleProfileLeaveGuild, // <-- ADICIONE ESTA LINHA
+    handleConfirmLeaveGuild // <-- ADICIONE ESTA LINHA
 };

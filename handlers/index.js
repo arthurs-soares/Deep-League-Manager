@@ -48,6 +48,8 @@ const {
     handleGuildPanelManageRosters_SelectAction,
     handleGuildPanelManagePlayer_SelectUser,
     handleGuildPanelManagePlayer_SelectRosterType,
+    handleProfileLeaveGuild,        
+    handleConfirmLeaveGuild         
 } = require('./panel/rosterHandlers');
 
 // Importações dos handlers de War Ticket (do indexador de War Ticket)
@@ -163,4 +165,8 @@ module.exports = {
     ...boostHandler, // Garante que handleBoostUpdate seja exportado
     loadUserProfile, // Handler de carregar o perfil do usuário
     saveUserProfile, // Handler de salvar o perfil do usuário
+
+    // Handlers para sair da guilda
+    handleProfileLeaveGuild,        
+    handleConfirmLeaveGuild 
 };
