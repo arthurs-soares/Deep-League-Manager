@@ -75,6 +75,9 @@ const { handleInteraction } = require('./panel/interactionHandler'); // CORRIGID
 // Importa o handler de eventos de boost
 const boostHandler = require('./events/boostHandler');
 
+// Handler do perfil de usuário
+const { loadUserProfile, saveUserProfile } = require('./db/userProfileDb');
+
 
 module.exports = {
     // Funções de Banco de Dados
@@ -158,4 +161,6 @@ module.exports = {
 
     // Event Handlers
     ...boostHandler, // Garante que handleBoostUpdate seja exportado
+    loadUserProfile, // Handler de carregar o perfil do usuário
+    saveUserProfile, // Handler de salvar o perfil do usuário
 };

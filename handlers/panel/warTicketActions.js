@@ -1,10 +1,11 @@
 // handlers/panel/warTicketActions.js
 const { EmbedBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 // Importações DIRETAS dos módulos necessários
-const { loadGuildByName, saveGuildData } = require('../db/guildDb'); 
+const { loadGuildByName, saveGuildData } = require('../db/guildDb');
 const { saveWarTicket, loadWarTicketByThreadId, deleteWarTicket } = require('../db/warDb'); 
 const { sendLogMessage } = require('../utils/logManager');                              // <-- Caminho corrigido
 const { resolveDisplayColor } = require('../utils/constants');                      // <-- Caminho corrigido
+const { loadUserProfile, saveUserProfile } = require('../db/userProfileDb'); // <-- ADICIONE ESTA LINHA
 
 // Importar as funções de criação de botões aqui. Este módulo SÓ DEVE IMPORTAR FUNÇÕES PARA CONSTRUIR BOTÕES, NUNCA HANDLERS DE MODAIS.
 const { createWarCurrentButtons } = require('./warTicketButtons'); 
@@ -22,8 +23,84 @@ const ROUNDS_TO_WIN = 2;
  * @param {Client} client - A instância do bot.
  * @param {Object} globalConfig - A configuração global do bot.
  * @param {Object} warData - Os dados da war.
+* @param {Object} winningGuild - O objeto da guilda vencedora (do DB).
+ * @param {Object} losingGuild - O objeto da guilda perdedora (do DB).
  */
-async function restrictThreadAccessOnCompletion(thread, client, globalConfig, warData) {
+
+// Substitua a função inteira em handlers/panel/warTicketActions.js
+
+/**
+ * Atualiza o score pessoal de vitórias/derrotas para todos os membros de uma guilda.
+ * @param {Object} guild - O objeto completo da guilda.
+ * @param {'win' | 'loss'} result - Se a guilda 'ganhou' ou 'perdeu'.
+ */
+async function updatePartyMembersScore(guild, result) {
+    if (!guild || !guild.name) return;
+
+    // Cria um Set para garantir que cada membro seja processado apenas uma vez.
+    const memberIds = new Set();
+
+    // Adiciona o líder e o vice-líder, se existirem.
+    if (guild.leader?.id) memberIds.add(guild.leader.id);
+    if (guild.coLeader?.id) memberIds.add(guild.coLeader.id);
+
+    // Adiciona todos os membros dos rosters.
+    (guild.mainRoster || []).forEach(member => memberIds.add(member.id));
+    (guild.subRoster || []).forEach(member => memberIds.add(member.id));
+
+    console.log(`[Score Pessoal DEBUG] Guilda: ${guild.name}, Resultado: ${result}, Membros a serem atualizados: ${memberIds.size}`);
+
+    if (memberIds.size === 0) {
+        console.warn(`[Score Pessoal] Nenhum membro (líder, co-líder, ou roster) encontrado para a guilda ${guild.name} para atualizar scores.`);
+        return;
+    }
+
+    for (const userId of memberIds) {
+        try {
+            const userProfile = await loadUserProfile(userId);
+            if (result === 'win') {
+                userProfile.personalScore.wins = (userProfile.personalScore.wins || 0) + 1;
+            } else {
+                userProfile.personalScore.losses = (userProfile.personalScore.losses || 0) + 1;
+            }
+            await saveUserProfile(userProfile);
+        } catch (error) {
+            console.error(`[Score Pessoal] Falha ao atualizar o perfil do usuário ${userId}:`, error);
+        }
+    }
+
+    console.log(`[Score Pessoal] Scores de '${result}' atualizados para ${memberIds.size} membros da guilda ${guild.name}.`);
+}
+
+/**
+ * Função principal que orquestra a atualização dos scores após uma war.
+ * Renomeada de updatePersonalScores para uma maior clareza.
+ * @param {string} winningGuildName - O NOME da guilda vencedora.
+ * @param {string} losingGuildName - O NOME da guilda perdedora.
+ */
+async function processWarResultForPersonalScores(winningGuildName, losingGuildName) {
+    try {
+        const winningGuild = await loadGuildByName(winningGuildName);
+        const losingGuild = await loadGuildByName(losingGuildName);
+
+        if (winningGuild) {
+            await updatePartyMembersScore(winningGuild, 'win');
+        } else {
+            console.error(`[Score Pessoal] Guilda vencedora "${winningGuildName}" não encontrada no DB para atualizar scores.`);
+        }
+
+        if (losingGuild) {
+            await updatePartyMembersScore(losingGuild, 'loss');
+        } else {
+            console.error(`[Score Pessoal] Guilda perdedora "${losingGuildName}" não encontrada no DB para atualizar scores.`);
+        }
+    } catch (error) {
+        console.error('❌ Erro fatal dentro de processWarResultForPersonalScores:', error);
+    }
+}
+
+async function restrictThreadAccessOnCompletion(interaction, client, globalConfig, warData) {
+    const thread = interaction.channel;
     if (!thread || !client || !globalConfig || !warData) {
         console.error('[RESTRICT THREAD] Parâmetros ausentes para restrictThreadAccessOnCompletion.');
         return;
@@ -31,7 +108,7 @@ async function restrictThreadAccessOnCompletion(thread, client, globalConfig, wa
 
     try {
         // 1. Nega SendMessages para @everyone na thread
-        await thread.permissionOverwrites.edit(thread.guild.roles.everyone, {
+        await thread.permissionOverwrites.edit(thread.guild.roles.everyone, { // Usa a `thread` definida acima
             SendMessages: false,
             SendMessagesInThreads: false,
         });
@@ -272,6 +349,7 @@ async function handleWarDodgeSelectGuildSubmit(interaction, client, globalConfig
     
     const dodgingGuildDB = await loadGuildByName(dodgingGuildData.name);
     const winnerGuildDB = await loadGuildByName(winnerGuildName);
+    await processWarResultForPersonalScores(winnerGuildName, dodgingGuildData.name);
 
     if (dodgingGuildDB) {
         dodgingGuildDB.score.losses = (dodgingGuildDB.score?.losses || 0) + 1;
@@ -342,7 +420,7 @@ async function handleWarDodgeSelectGuildSubmit(interaction, client, globalConfig
     );
     
     // Restringir acesso e arquivar a thread
-    await restrictThreadAccessOnCompletion(interaction.channel, client, globalConfig, warData);
+    await restrictThreadAccessOnCompletion(interaction, client, globalConfig, warData);a
     console.log(`[DEBUG DODGE SUBMIT] Dodge concluído com sucesso.`);
 }
 
@@ -472,6 +550,7 @@ async function handleWarRoundButton(interaction, client, globalConfig) {
         // Atualizar scores das guildas no DB (vencedor +1, perdedor +1)
         const winnerGuildDB = await loadGuildByName(finalWinnerGuildName); 
         const loserGuildDB = await loadGuildByName(finalLoserGuildName);   
+        await processWarResultForPersonalScores(finalWinnerGuildName, finalLoserGuildName);
 
         if (winnerGuildDB) {
             winnerGuildDB.score.wins = (winnerGuildDB.score?.wins || 0) + 1;
@@ -493,7 +572,7 @@ async function handleWarRoundButton(interaction, client, globalConfig) {
 
         await deleteWarTicket(warData.threadId); 
         // Restringir acesso e arquivar a thread
-        await restrictThreadAccessOnCompletion(interaction.channel, client, globalConfig, warData);
+        await restrictThreadAccessOnCompletion(interaction, client, globalConfig, warData);
 
         console.log(`[DEBUG ROUND] War concluída e ticket deletado do DB.`);
 
