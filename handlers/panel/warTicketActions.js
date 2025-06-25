@@ -11,7 +11,7 @@ const { createWarCurrentButtons } = require('./warTicketButtons');
 
 const MAX_ROUNDS = 3; 
 const ROUNDS_TO_WIN = 2; 
-const DODGE_LOG_CHANNEL_ID = '1301342044681404416'; 
+
 
 
 /**
@@ -311,7 +311,8 @@ async function handleWarDodgeSelectGuildSubmit(interaction, client, globalConfig
 
     await interaction.channel.send(`**Atenção!** A War/Glad entre **${warData.yourGuild.name}** e **${warData.enemyGuild.name}** foi declarada **DODGE**! **${dodgingGuildName}** fugiu!`);
 
-    const dodgeLogChannel = await client.channels.fetch(DODGE_LOG_CHANNEL_ID).catch(() => null);
+    // CÓDIGO CORRIGIDO PARA USAR DENTRO DE handleWarDodgeSelectGuildSubmit
+    const dodgeLogChannel = await client.channels.fetch(globalConfig.dodgeLogChannelId).catch(() => null);
     if (dodgeLogChannel && dodgeLogChannel.type === ChannelType.GuildText && dodgeLogChannel.permissionsFor(client.user).has([PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks])) {
         const dodgeEmbed = new EmbedBuilder()
             .setTitle('🚨 DODGE DETECTADO! 🚨')
@@ -326,7 +327,7 @@ async function handleWarDodgeSelectGuildSubmit(interaction, client, globalConfig
             .setTimestamp();
         await dodgeLogChannel.send({ embeds: [dodgeEmbed] });
     } else {
-        console.error(`❌ [DODGE LOG] Canal de log de dodge (ID: ${DODGE_LOG_CHANNEL_ID}) não encontrado ou bot sem permissões para enviar logs de dodge.`);
+        console.error(`❌ [DODGE LOG] Canal de log de dodge (ID: ${globalConfig.dodgeLogChannelId}) não encontrado ou bot sem permissões para enviar logs de dodge.`);
     }
 
     await sendLogMessage(
