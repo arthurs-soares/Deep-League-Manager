@@ -6,6 +6,7 @@ const { sendLogMessage } = require('../utils/logManager');
 const { getAndValidateGuild } = require('../utils/validation');                         
 const { manageGuildForumPost } = require('../../utils/guildForumPostManager'); // NOVO: manageGuildForumPost importado
 const { loadGuildById } = require('../db/guildDb');
+const { loadTeamByName, loadTeamById, saveTeamData } = require('../db/teamDb');
 
 const COOLDOWN_DAYS = 3; 
 const MAX_ROSTER_SIZE = 5; 
