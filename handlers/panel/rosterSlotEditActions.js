@@ -1,16 +1,16 @@
-// handlers/panel/rosterSlotEdit.js
+// handlers/panel/rosterSlotEditActions.js
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, StringSelectMenuBuilder, MessageFlags } = require('discord.js');
-const { loadGuildByName, saveGuildData, isUserInAnyGuild } = require('../db/guildDb'); 
+const { loadGuildByName, saveGuildData, isUserInAnyGuild, loadGuildById } = require('../db/guildDb');
 const { saveConfig } = require('../db/configDb');
 const { sendLogMessage } = require('../utils/logManager');
 const { getAndValidateGuild } = require('../utils/validation');
 const { manageGuildForumPost } = require('../../utils/guildForumPostManager');
-// Funções e constantes do nosso rosterUtils.js
-const { validateMemberEligibility, applyLeaveCooldown, analyzeRosterChangesForSlotEdit, COOLDOWN_DAYS: SLOT_EDIT_COOLDOWN_DAYS } = require('./rosterUtils');
+const { COOLDOWN_DAYS, MAX_ROSTER_SIZE } = require('../utils/constants');
 
-const MAX_ROSTER_SIZE = 5; // Usado para o loop dos slots
-
+// --- HANDLERS DE TROCAR JOGADOR POR SLOT (MANTIDO) ---
 async function handleGuildPanelTrocarJogador_Initial(interaction, guildIdSafe, globalConfig, client) {
+    // ... (COPIE O CORPO DA FUNÇÃO handleGuildPanelTrocarJogador_Initial DO SEU rosterHandlers.js ORIGINAL AQUI)
+    // As primeiras linhas seriam:
     console.log(`[DIAGNÓSTICO SLOT] handleGuildPanelTrocarJogador_Initial INICIADO para guilda: ${guildIdSafe}`);
     try {
         const guild = await getAndValidateGuild(guildIdSafe, interaction, globalConfig, client, loadGuildByName, false, true);
@@ -30,6 +30,7 @@ async function handleGuildPanelTrocarJogador_Initial(interaction, guildIdSafe, g
         const row = new ActionRowBuilder().addComponents(selectMenu);
 
         console.log(`[DIAGNÓSTICO SLOT] handleGuildPanelTrocarJogador_Initial: Retornando menu de seleção de roster.`);
+        // RETORNA OS DADOS EM VEZ DE RESPONDER
         return { type: 'content', content: `Qual roster de **${guild.name}** você gostaria de editar por slot?`, components: [row], flags: MessageFlags.Ephemeral };
     } catch (error) {
         console.error(`❌ [DIAGNÓSTICO SLOT] ERRO FATAL em handleGuildPanelTrocarJogador_Initial:`, error);
@@ -38,11 +39,14 @@ async function handleGuildPanelTrocarJogador_Initial(interaction, guildIdSafe, g
 }
 
 async function handleGuildPanelTrocarJogador_RosterSelect(interaction, guildIdSafe, globalConfig, client) {
+    // ... (COPIE O CORPO DA FUNÇÃO handleGuildPanelTrocarJogador_RosterSelect DO SEU rosterHandlers.js ORIGINAL AQUI)
+    // As primeiras linhas seriam:
     console.log(`[DIAGNÓSTICO SLOT] handleGuildPanelTrocarJogador_RosterSelect INICIADO para guilda: ${guildIdSafe}, rosterType: ${interaction.values[0]}`);
     try {
         const rosterType = interaction.values[0];
         const guild = await loadGuildByName(guildIdSafe.replace(/-/g, ' '));
         if (!guild) {
+            // Se a guilda não for encontrada, precisamos responder com um erro.
             return interaction.reply({ content: '❌ Guilda não encontrada. A operação foi cancelada.', ephemeral: true });
         }
 
@@ -69,6 +73,7 @@ async function handleGuildPanelTrocarJogador_RosterSelect(interaction, guildIdSa
         }
         
         console.log(`[DIAGNÓSTICO SLOT] handleGuildPanelTrocarJogador_RosterSelect: Mostrando modal para edição de slots.`);
+        // A função agora responde diretamente à sua própria interação com o modal.
         await interaction.showModal(modal);
 
     } catch (error) {
@@ -80,6 +85,8 @@ async function handleGuildPanelTrocarJogador_RosterSelect(interaction, guildIdSa
 }
 
 async function handleGuildPanelTrocarJogador_RosterSubmit(interaction, guildIdSafe, globalConfig, client) {
+    // ... (COPIE O CORPO DA FUNÇÃO handleGuildPanelTrocarJogador_RosterSubmit DO SEU rosterHandlers.js ORIGINAL AQUI)
+    // As primeiras linhas seriam:
     console.log(`[DIAGNÓSTICO SLOT] handleGuildPanelTrocarJogador_RosterSubmit INICIADO para guilda: ${guildIdSafe}`);
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -134,23 +141,41 @@ async function handleGuildPanelTrocarJogador_RosterSubmit(interaction, guildIdSa
             return interaction.editReply({ content: `❌ Erros na submissão:\n• ${errors.join('\n• ')}` });
         }
 
-           const {
-        playersAddedToGuild,
-        playersTrulyRemovedFromGuild,
-        playersMovedWithinGuild
-    } = analyzeRosterChangesForSlotEdit(
-        oldMainRoster,
-        oldSubRoster,
-        newProposedRoster,
-        rosterType, // rosterType é o tipo sendo editado ('main' ou 'sub')
-        guild.leader,
-        guild.coLeader
-    );
+        const allOldGuildMembers = new Set([...oldMainRoster.map(p => p.id), ...oldSubRoster.map(p => p.id)]);
+        const allNewGuildMembers = new Set([...newProposedRoster.map(p => p.id), ... (rosterType === 'main' ? oldSubRoster : oldMainRoster).map(p => p.id)]); 
+
+        const playersTrulyRemovedFromGuild = []; 
+        const playersMovedWithinGuild = [];     
+        const playersAddedToGuild = [];         
+
+        for (const oldPlayer of allOldGuildMembers) {
+            if (!allNewGuildMembers.has(oldPlayer)) {
+                const isLeader = guild.leader?.id === oldPlayer;
+                const isCoLeader = guild.coLeader?.id === oldPlayer;
+                if (!isLeader && !isCoLeader) {
+                    playersTrulyRemovedFromGuild.push(oldPlayer); 
+                }
+            }
+        }
+
+        for (const newPlayer of processedUserIdsInSubmission) { 
+            const wasInOldMain = oldMainRoster.some(p => p.id === newPlayer);
+            const wasInOldSub = oldSubRoster.some(p => p.id === newPlayer);
+
+            if (!wasInOldMain && !wasInOldSub) {
+                playersAddedToGuild.push(newPlayer);
+            } else if ((rosterType === 'main' && wasInOldSub && !oldMainRoster.some(p => p.id === newPlayer)) || 
+                       (rosterType === 'sub' && wasInOldMain && !oldSubRoster.some(p => p.id === newPlayer))) {
+                playersMovedWithinGuild.push(newPlayer);
+            }
+        }
+
 
         const now = new Date(); // CORRIGIDO: new Date() para ter toISOString()
         for (const removedPlayerId of playersTrulyRemovedFromGuild) {
-                    applyLeaveCooldown(removedPlayerId, globalConfig);
-        console.log(`[DIAGNÓSTICO SLOT] Cooldown aplicado para ${removedPlayerId} (removido da guilda).`);
+            globalConfig.recentlyLeftUsers = globalConfig.recentlyLeftUsers.filter(u => u.userId !== removedPlayerId); 
+            globalConfig.recentlyLeftUsers.push({ userId: removedPlayerId, leaveTimestamp: now.toISOString() });
+            console.log(`[DIAGNÓSTICO SLOT] Cooldown aplicado para ${removedPlayerId} (removido da guilda).`);
         }
 
         const newPlayersWithCooldownChecks = [];
@@ -161,12 +186,22 @@ async function handleGuildPanelTrocarJogador_RosterSubmit(interaction, guildIdSa
                 continue;
             }
 
-            const validation = await validateMemberEligibility(addedPlayerId, guild, globalConfig, member); // member aqui é o user object
-            if (!validation.elegible) {
-                errors.push(validation.error);
+            const userInAnotherGuild = await isUserInAnyGuild(addedPlayerId);
+            if (userInAnotherGuild && userInAnotherGuild.name !== guild.name) {
+                errors.push(`Usuário ${member.toString()} já está na guilda "${userInAnotherGuild.name}" e não pode ser adicionado.`);
                 continue;
             }
 
+            const recentlyLeftUser = globalConfig.recentlyLeftUsers.find(u => u.userId === addedPlayerId);
+            if (recentlyLeftUser) {
+                const leaveTime = new Date(recentlyLeftUser.leaveTimestamp).getTime();
+                const diffTime = now.getTime() - leaveTime;
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays < COOLDOWN_DAYS) {
+                    errors.push(`Usuário ${member.toString()} precisa esperar ${COOLDOWN_DAYS - diffDays} dia(s) para entrar em uma nova guilda.`);
+                    continue;
+                }
+            }
             globalConfig.recentlyLeftUsers = globalConfig.recentlyLeftUsers.filter(u => u.userId !== addedPlayerId);
             newPlayersWithCooldownChecks.push(addedPlayerId); 
         }
@@ -186,7 +221,8 @@ async function handleGuildPanelTrocarJogador_RosterSubmit(interaction, guildIdSa
         guild.updatedBy = interaction.user.id;
 
         await saveGuildData(guild);
-
+        
+        // NOVO: Atualizar o post no fórum da guilda
         await manageGuildForumPost(client, guild, globalConfig, 'update', interaction);
 
         client.emit('updateLeaderboard');

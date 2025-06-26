@@ -12,6 +12,9 @@ const COLOR_MAP = {
     'white': '#FFFFFF', 'black': '#000000',
 };
 
+const COOLDOWN_DAYS = 3;
+const MAX_ROSTER_SIZE = 5;
+
 /**
  * Resolve uma string de cor em um formato de cor hexadecimal que o Discord aceita.
  * Suporta nomes de cores predefinidos, códigos hexadecimais ou 'random'.
@@ -43,5 +46,7 @@ function resolveDisplayColor(colorString, globalConfig) {
 
 module.exports = {
     COLOR_MAP,
-    resolveDisplayColor
+    resolveDisplayColor,
+    COOLDOWN_DAYS,
+    MAX_ROSTER_SIZE,  
 };

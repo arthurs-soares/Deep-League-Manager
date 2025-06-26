@@ -9,7 +9,7 @@ const { loadConfig } = require('../handlers/db/configDb');
 const { resolveDisplayColor } = require('../handlers/utils/constants');                      
 const { sendLogMessage } = require('../handlers/utils/logManager');                          
 
-const MAX_ROSTER_SIZE = 5; 
+const { MAX_ROSTER_SIZE } = require('../handlers/utils/constants'); 
 
 /**
  * Constrói o embed de perfil da guilda, similar ao comando /visualizar, mas formatado para o post do fórum.

@@ -1,16 +1,16 @@
-const { ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+// handlers/panel/rosterLeaveActions.js
+const { ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } = require('discord.js');
 const { loadGuildById, saveGuildData } = require('../db/guildDb');
 const { saveConfig } = require('../db/configDb');
 const { sendLogMessage } = require('../utils/logManager');
 const { manageGuildForumPost } = require('../../utils/guildForumPostManager');
-// Precisaremos da função applyLeaveCooldown que está em rosterUtils.js
-const { applyLeaveCooldown, COOLDOWN_DAYS: LEAVE_COOLDOWN_DAYS } = require('./rosterUtils'); // Importando do novo utils
+const { COOLDOWN_DAYS, MAX_ROSTER_SIZE } = require('../utils/constants');
+
 
 async function handleProfileLeaveGuild(interaction, guildMongoId, globalConfig, client) {
-    // Carrega a guilda pelo ID passado no customId do botão
+    // ... (COPIE O CORPO DA FUNÇÃO handleProfileLeaveGuild DO SEU rosterHandlers.js ORIGINAL AQUI)
+    // As primeiras linhas seriam:
     const guild = await loadGuildById(guildMongoId);
-
-    // Validações
     if (!guild) {
         return interaction.reply({ content: '❌ A guilda da qual você está tentando sair não foi encontrada. Ela pode ter sido deletada.', ephemeral: true });
     }
@@ -41,8 +41,9 @@ async function handleProfileLeaveGuild(interaction, guildMongoId, globalConfig, 
 }
 
 async function handleConfirmLeaveGuild(interaction, guildMongoId, globalConfig, client) {
-    await interaction.deferUpdate(); // Acknowledge o clique no botão
-
+    // ... (COPIE O CORPO DA FUNÇÃO handleConfirmLeaveGuild DO SEU rosterHandlers.js ORIGINAL AQUI)
+    // As primeiras linhas seriam:
+    await interaction.deferUpdate();
     const guild = await loadGuildById(guildMongoId);
     if (!guild) {
         return interaction.editReply({ content: '❌ A guilda não foi encontrada. Ação cancelada.', components: [] });
@@ -55,7 +56,12 @@ async function handleConfirmLeaveGuild(interaction, guildMongoId, globalConfig, 
     guild.updatedBy = interaction.user.id;
 
     // Aplica o cooldown
-    applyLeaveCooldown(interaction.user.id, globalConfig);
+    const COOLDOWN_DAYS = 3;
+    const now = new Date();
+    globalConfig.recentlyLeftUsers = globalConfig.recentlyLeftUsers.filter(u => u.userId !== interaction.user.id);
+    globalConfig.recentlyLeftUsers.push({ userId: interaction.user.id, leaveTimestamp: now.toISOString() });
+    const threeDaysAgo = new Date(now.getTime() - (COOLDOWN_DAYS * 24 * 60 * 60 * 1000));
+    globalConfig.recentlyLeftUsers = globalConfig.recentlyLeftUsers.filter(u => new Date(u.leaveTimestamp) > threeDaysAgo);
     
     // Salva tudo
     await saveGuildData(guild);

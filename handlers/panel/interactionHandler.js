@@ -2,6 +2,7 @@
 // Módulo central para o tratamento e roteamento de todas as interações do Discord.
 const { InteractionType, MessageFlags } = require('discord.js');
 const { handleError } = require('../../utils/errorHandler'); // Importa o handler de erros (caminho relativo à raiz)
+const { getAndValidateGuild } = require('../utils/validation');                         
 
 /**
  * Capitaliza a primeira letra de uma string.
@@ -221,25 +222,142 @@ async function handleInteraction(interaction, client, globalConfig) {
             await command.execute(interaction, client, globalConfig);
         }
         // --- Botões ---
-        else if (interaction.isButton()) {
-            // Roteia interações de botão usando o novo sistema de mapeamento
-            await routeButtonInteraction(interaction, client, globalConfig);
-        }
+                else if (interaction.isButton()) { // <--- ESTAMOS AQUI
+            const customId = interaction.customId;
+            console.log(`[DEBUG InteractionHandler] Roteando botão: ${customId}`);
+
+            // <--- SUBSTITUA A LÓGICA DE ROTEAMENTO DE BOTÕES EXISTENTE POR ESTA: --->
+            if (customId.startsWith('guildedit_button_')) {
+                // Chama o handler intermediário que sabe como parsear este customId
+                // Este handler está no final do seu interactionHandler.js ou em client.guildPanelHandlers
+                await client.guildPanelHandlers.handleGuildEditButton(interaction, client, globalConfig, customId);
+            } else if (customId.startsWith('profile_leave_guild_')) {
+                const guildMongoId = customId.replace('profile_leave_guild_', '');
+                await client.guildPanelHandlers.handleProfileLeaveGuild(interaction, guildMongoId, globalConfig, client);
+            } else if (customId.startsWith('confirm_leave_guild_')) {
+                const guildMongoId = customId.replace('confirm_leave_guild_', '');
+                await client.guildPanelHandlers.handleConfirmLeaveGuild(interaction, guildMongoId, globalConfig, client);
+            } else if (customId === 'cancel_leave_guild') {
+                 await interaction.update({ content: 'ℹ️ Ação de sair da guilda foi cancelada.', components: [], embeds: [] });
+            }
+            // War Ticket Buttons
+            else if (customId === 'pull_war_ticket') {
+                await client.guildPanelHandlers.handleWarTicketButton(interaction, globalConfig, client);
+            } else if (customId === 'war_accept') {
+                await client.guildPanelHandlers.handleWarAcceptButton(interaction, globalConfig, client);
+            } else if (customId === 'war_request_dodge') {
+                await client.guildPanelHandlers.handleWarRequestDodgeButton(interaction, globalConfig, client);
+            } else if (customId.startsWith('war_round_win_')) {
+                // O handleWarRoundButton já sabe como lidar com seu customId complexo
+                await client.guildPanelHandlers.handleWarRoundButton(interaction, client, globalConfig);
+            }
+            // Guild Panel Buttons - Dropdown para gerenciar rosters
+            else if (customId.startsWith('guildpanel_manage_rosters_dropdown_')) {
+                const guildIdSafe = customId.replace('guildpanel_manage_rosters_dropdown_', '');
+                await client.guildPanelHandlers.handleGuildPanelManageRosters_Initial(interaction, guildIdSafe, globalConfig, client);
+            }
+            // Roteamento genérico para outros botões 'guildpanel_' (deve vir depois dos mais específicos)
+            // Esta chamada é para client.guildPanelHandlers.handleGuildPanelButton
+            else if (customId.startsWith('guildpanel_')) {
+                await client.guildPanelHandlers.handleGuildPanelButton(interaction, client, globalConfig, customId);
+            }
+            // Fallback para botões não tratados
+            else {
+                console.warn(`⚠️ CustomId de botão não tratado: ${customId}`);
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({ content: `❌ Ação de botão não reconhecida. (ID: ${customId})`, ephemeral: true });
+                }
+            }
+        } // Fim do else if (interaction.isButton())
+
         // --- Menus de Seleção (StringSelectMenu e UserSelectMenu) ---
-        else if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu()) {
-             // Roteia interações de menu de seleção usando o novo sistema de mapeamento
-            await routeSelectMenuInteraction(interaction, client, globalConfig);
-        }
+        else if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu()) { // <--- SEÇÃO DE MENUS DE SELEÇÃO
+            const customId = interaction.customId;
+            console.log(`[DEBUG InteractionHandler] Roteando select menu "${customId}"`);
+
+            if (customId.startsWith('manage_rosters_action_select_')) {
+                const guildIdSafe = customId.replace('manage_rosters_action_select_', '');
+                await client.guildPanelHandlers.handleGuildPanelManageRosters_SelectAction(interaction, guildIdSafe, globalConfig, client);
+            } else if (customId.startsWith('roster_select_type_')) {
+                const guildIdSafe = customId.replace('roster_select_type_', '');
+                // A função handleGuildPanelTrocarJogador_RosterSelect DEVE chamar interaction.showModal()
+                await client.guildPanelHandlers.handleGuildPanelTrocarJogador_RosterSelect(interaction, guildIdSafe, globalConfig, client);
+            } else if (customId.startsWith('manageplayer_user_select_')) {
+                // O handler handleGuildPanelManagePlayer_SelectUser parseia o customId internamente
+                await client.guildPanelHandlers.handleGuildPanelManagePlayer_SelectUser(interaction, client, globalConfig, customId);
+            } else if (customId.startsWith('manageplayer_roster_type_select_')) {
+                // O handler handleGuildPanelManagePlayer_SelectRosterType parseia o customId internamente
+                await client.guildPanelHandlers.handleGuildPanelManagePlayer_SelectRosterType(interaction, client, globalConfig, customId);
+            } else if (customId === 'help_select_menu') {
+                console.log(`[DEBUG InteractionHandler] Menu 'help_select_menu' coletado, será tratado pelo coletor do comando /ajuda.`);
+                // Nenhuma ação aqui, o coletor do comando /ajuda lida com isso.
+            }
+            // Fallback para menus não tratados
+            else {
+                console.warn(`⚠️ CustomId de menu de seleção não tratado: ${customId}`);
+                 if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({ content: `❌ Ação de menu não reconhecida. (ID: ${customId})`, ephemeral: true });
+                }
+            }
+        } // Fim do else if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu())
+
         // --- Modais (Envio de Formulários) ---
-        else if (interaction.type === InteractionType.ModalSubmit) {
-             // Roteia interações de submissão de modal usando o novo sistema de mapeamento
-            await routeModalSubmitInteraction(interaction, client, globalConfig);
-        }
+        else if (interaction.type === InteractionType.ModalSubmit) { // <--- SEÇÃO DE MODAIS
+            const customId = interaction.customId;
+            console.log(`[DEBUG InteractionHandler] Routing modal submit "${customId}"`);
+
+            if (customId.startsWith('guildedit_modal_')) {
+                // O handler handleGuildEditModalSubmit parseia o customId internamente
+                await client.guildPanelHandlers.handleGuildEditModalSubmit(interaction, client, globalConfig, customId);
+            } else if (customId === 'modal_war_ticket_submit') {
+                await client.guildPanelHandlers.handleWarTicketModalSubmit(interaction, client, globalConfig, customId);
+            } else if (customId.startsWith('modal_war_dodge_select_guild_')) {
+                // O handler handleWarDodgeSelectGuildSubmit parseia o customId internamente
+                await client.guildPanelHandlers.handleWarDodgeSelectGuildSubmit(interaction, client, globalConfig, customId);
+            } else if (customId.startsWith('roster_edit_modal_')) {
+                const parts = customId.split('_'); // Ex: roster_edit_modal_main_my-guild-name
+                const guildIdSafe = parts.slice(4).join('_');
+                await client.guildPanelHandlers.handleGuildPanelTrocarJogador_RosterSubmit(interaction, guildIdSafe, globalConfig, client);
+            } else if (customId.startsWith('modal_guildpanel_bulkaddmember_')) {
+                const guildIdSafe = customId.replace('modal_guildpanel_bulkaddmember_', '');
+                await client.guildPanelHandlers.handleGuildPanelBulkaddmemberSubmit(interaction, guildIdSafe, globalConfig, client);
+            }
+            // Roteamento genérico para outros modais 'modal_guildpanel_'
+            else if (customId.startsWith('modal_guildpanel_')) {
+                // O handler handleGuildPanelModalSubmit parseia o customId internamente
+                await client.guildPanelHandlers.handleGuildPanelModalSubmit(interaction, client, globalConfig, customId);
+            }
+            // Fallback para modais não tratados
+            else {
+                 console.warn(`⚠️ CustomId de modal não tratado: ${customId}`);
+                 if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({ content: `❌ Envio de formulário não reconhecido. (ID: ${customId})`, ephemeral: true });
+                }
+            }
+        } // Fim do else if (interaction.type === InteractionType.ModalSubmit)
+
+        // --- Autocomplete ---
+        else if (interaction.isAutocomplete()) { // <--- ADICIONAR ESTA SEÇÃO COMPLETA
+            const command = client.commands.get(interaction.commandName);
+            // Verifica se o comando existe e se ele TEM uma função autocomplete
+            if (!command || typeof command.autocomplete !== 'function') {
+                console.warn(`Autocomplete não encontrado ou não é uma função para o comando ${interaction.commandName}`);
+                await interaction.respond([]).catch(() => {}); // Responde vazio para não travar
+                return;
+            }
+            try {
+                // Chama a função autocomplete do comando específico
+                await command.autocomplete(interaction, client, globalConfig);
+            } catch (error) {
+                console.error(`Erro durante autocomplete para ${interaction.commandName}:`, error);
+                await interaction.respond([]).catch(() => {}); // Responde vazio em caso de erro
+            }
+        } // Fim do else if (interaction.isAutocomplete())
+
     } catch (error) {
-        // Envia o erro para o handler de erros centralizado.
         await handleError(error, interaction.customId || interaction.commandName || "interação desconhecida", interaction);
     }
-}
+} // Fim da função handleInteraction
 
 // --- Intermediate Handler Functions ---
 // These functions are called by the routing logic above.
@@ -339,28 +457,9 @@ async function handleGuildPanelModalSubmit(interaction, client, globalConfig, cu
 
 module.exports = {
     handleInteraction,
-    // Exporta as funções de roteamento intermediárias para serem usadas pelos handlers específicos
-    // (Embora o ideal seja que os handlers específicos sejam chamados diretamente pelo interactionHandler)
-    // Se a lógica de extração de args for complexa, pode ser útil manter essas funções intermediárias
-    // Por enquanto, vamos assumir que os handlers mapeados sabem como extrair seus args do customId completo.
-    // Se necessário, podemos adicionar funções como handleGuildEditButton(interaction, client, globalConfig, customId)
-    // que extrai fieldToEdit e guildMongoId e chama handleGuildShowEdit${capitalize(fieldToEdit)}Modal.
-    // Para simplificar AGORA, vamos fazer o mapeamento direto para as funções finais onde possível.
-    // A estrutura de mapeamento acima já faz isso.
-
-    // Para que o mapeamento direto funcione, os handlers mapeados precisam ter a assinatura:
-    // async function handlerName(interaction, client, globalConfig, customId) { ... }
-    // E extrair seus próprios argumentos (guildId, field, etc.) do customId.
-    // Isso simplifica o interactionHandler, mas move a lógica de parsing para cada handler.
-    // É um trade-off. A versão com funções intermediárias (comentada acima) centraliza o parsing.
-    // Vamos seguir com o mapeamento direto por enquanto, pois é mais limpo no interactionHandler.
-    // Isso significa que handleWarTicketButton, handleGuildShowEditNameModal, handleGuildPanelManageRosters_Initial, etc.
-    // precisarão ser atualizados para aceitar (interaction, client, globalConfig, customId)
-    // e fazer o split(customId, '_') internamente.
-
-    // Exportando os handlers intermediários que foram definidos acima.
     handleGuildEditButton,
     handleGuildPanelButton,
     handleGuildEditModalSubmit,
     handleGuildPanelModalSubmit,
+    getAndValidateGuild
 };
