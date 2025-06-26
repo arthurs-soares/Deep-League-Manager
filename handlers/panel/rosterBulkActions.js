@@ -6,6 +6,7 @@ const { sendLogMessage } = require('../utils/logManager');
 const { getAndValidateGuild } = require('../utils/validation');
 const { manageGuildForumPost } = require('../../utils/guildForumPostManager');
 const { COOLDOWN_DAYS, MAX_ROSTER_SIZE } = require('../utils/constants');
+const { processRosterInput } = require('../panel/rosterUtils');
 
 // --- HANDLERS DE ADICIONAR MEMBROS EM MASSA (BULK ADD por IDs) ---
 async function handleGuildPanelBulkaddmember(interaction, guildIdSafe, globalConfig, client) {

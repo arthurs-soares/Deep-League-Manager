@@ -15,7 +15,7 @@ const { MessageFlags, PermissionFlagsBits } = require('discord.js');
  * @param {boolean} allowCoLeader - Se true (e requireLeader for false), permite que o usuário seja o co-líder da guilda.
  * @returns {Promise<Object|null>} A guilda encontrada, ou null se não for encontrada/sem permissão.
  */
-async function getAndValidateGuild(guildIdSafe, interaction, globalConfig, client, loadGuildByNameFunction, requireLeader = false, allowCoLeader = true) { 
+async function getAndValidateGuild(guildIdSafe, interaction, globalConfig, client, loadGuildByNameFunction, requireLeader = false, allowCoLeader = true) {
     const guildName = guildIdSafe.replace(/-/g, ' '); // Converte o ID seguro de volta para o nome original.
     const guild = await loadGuildByNameFunction(guildName); // Carrega a guilda do DB.
 

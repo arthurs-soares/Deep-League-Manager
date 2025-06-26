@@ -1,198 +1,143 @@
 // handlers/db/guildDb.js
-// Módulo para interagir com a coleção 'guilds' no banco de dados.
-const { ObjectId } = require('mongodb');
-const { getDatabaseInstance } = require('../../utils/database');
+const { getDb } = require('../../utils/database'); // Ajuste o caminho se necessário
+const { ObjectId } = require('mongodb'); // Necessário se você manipular _id como ObjectId
 
-const guildCache = new Map();
-const CACHE_TTL = 5 * 60 * 1000;
-
-function normalizeGuildData(guild) {
-    if (!guild) return guild;
-    if (guild._id && (!guild.id || guild.id.toString() !== guild._id.toString())) {
-        guild.id = guild._id;
+// --- FUNÇÃO AUXILIAR PARA OBTER A COLEÇÃO ---
+const getGuildsCollection = () => {
+    const db = getDb(); // Obtém a instância do banco de dados
+    if (!db) {
+        // Isso não deveria acontecer se connectToDatabase foi chamado corretamente na inicialização
+        throw new Error("A conexão com o banco de dados não foi estabelecida em getGuildsCollection.");
     }
-    guild.score = guild.score || {};
-    guild.score.wins = typeof guild.score.wins === 'number' ? guild.score.wins : 0;
-    guild.score.losses = typeof guild.score.losses === 'number' ? guild.score.losses : 0;
-    guild.mainRoster = guild.mainRoster || [];
-    guild.subRoster = guild.subRoster || [];
-    guild.leader = guild.leader || null;
-    if (guild.leader && !guild.leader.id) guild.leader = null;
-    guild.coLeader = guild.coLeader || null;
-    if (guild.coLeader && !guild.coLeader.id) guild.coLeader = null;
-    guild.forumPostId = guild.forumPostId || null;
-    return guild;
-}
+    return db.collection('guilds'); // 'guilds' é o nome da sua coleção
+};
 
-async function loadGuildByName(guildName) {
-    const cacheKey = guildName.toLowerCase();
-    if (guildCache.has(cacheKey)) {
-        const cachedEntry = guildCache.get(cacheKey);
-        if (Date.now() - cachedEntry.timestamp < CACHE_TTL) {
-            console.log(`[CACHE HIT] Carregando guilda '${guildName}' do cache.`);
-            return JSON.parse(JSON.stringify(cachedEntry.data));
-        }
-    }
-    console.log(`[CACHE MISS] Guilda '${guildName}' não encontrada no cache ou expirada. Buscando no DB.`);
-    const db = getDatabaseInstance();
+// --- SUAS FUNÇÕES EXISTENTES ---
+async function saveGuildData(guildData) {
     try {
-        let guild = await db.collection('guilds').findOne({ name: { $regex: new RegExp(`^${guildName}$`, 'i') } });
-        if (guild) {
-            guild = normalizeGuildData(guild);
-            guildCache.set(cacheKey, { data: guild, timestamp: Date.now() });
+        // AGORA getGuildsCollection() ESTARÁ DEFINIDA
+        const collection = getGuildsCollection();
+        
+        // Certifique-se que guildData tem _id ou id
+        let filter;
+        if (guildData._id) {
+            filter = { _id: guildData._id instanceof ObjectId ? guildData._id : new ObjectId(guildData._id) };
+        } else if (guildData.id) { // Fallback para 'id' se '_id' não existir (ex: objeto novo antes do primeiro save)
+            // Este caso é mais para upsert em uma criação, mas para update, _id já deveria existir.
+            // Se guildData.id é uma string de ObjectId, converta.
+            filter = { _id: new ObjectId(guildData.id) };
+        } else {
+            console.error("[guildDb - saveGuildData] Erro: guildData não possui _id ou id para filtro.", guildData);
+            throw new Error("Dados da guilda inválidos para salvar: _id ou id ausente.");
         }
-        return guild;
+
+        // Remova _id do objeto a ser setado para evitar erro de modificar _id
+        // Crie uma cópia para não modificar o objeto original guildData se ele for usado depois
+        const dataToSet = { ...guildData };
+        delete dataToSet._id; // MongoDB não permite que você defina _id em uma operação $set
+
+        console.log(`[guildDb - saveGuildData] Tentando salvar guilda: ${guildData.name}, Filtro:`, filter);
+        console.log(`[guildDb - saveGuildData] Dados para $set:`, dataToSet);
+
+        const result = await collection.updateOne(filter, { $set: dataToSet }, { upsert: true });
+        console.log('[guildDb - saveGuildData] Resultado do updateOne:', result);
+        // ... (resto da sua lógica de log de resultado) ...
+        return result;
     } catch (error) {
-        console.error(`❌ Erro ao carregar guilda "${guildName}" por nome no DB:`, error);
+        console.error(`❌ Erro ao salvar dados da guilda ${guildData.name || 'DESCONHECIDA'}:`, error);
         throw error;
     }
 }
 
-async function loadGuildById(guildMongoId) {
-    const cacheKey = guildMongoId.toString();
-    if (guildCache.has(cacheKey)) {
-        const cachedEntry = guildCache.get(cacheKey);
-        if (Date.now() - cachedEntry.timestamp < CACHE_TTL) {
-            console.log(`[CACHE HIT] Carregando guilda por ID '${guildMongoId}' do cache.`);
-            return JSON.parse(JSON.stringify(cachedEntry.data));
-        }
-    }
-    console.log(`[CACHE MISS] Guilda por ID '${guildMongoId}' não encontrada no cache ou expirada. Buscando no DB.`);
-    const db = getDatabaseInstance();
+async function loadGuildByName(name) {
     try {
-        if (!ObjectId.isValid(guildMongoId)) {
-            console.warn(`[DB Debug] loadGuildById: ID inválido fornecido: ${guildMongoId}`);
-            return null;
-        }
-        let guild = await db.collection('guilds').findOne({ _id: new ObjectId(guildMongoId) });
-        if (guild) {
-            guild = normalizeGuildData(guild);
-            guildCache.set(cacheKey, { data: guild, timestamp: Date.now() });
-        }
-        return guild;
+        const collection = getGuildsCollection(); // Use-a aqui também
+        // Busca insensível a maiúsculas/minúsculas
+        return await collection.findOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } });
     } catch (error) {
-        console.error(`❌ Erro ao carregar guilda por ID "${guildMongoId}" no DB:`, error);
+        console.error(`❌ Erro ao carregar guilda por nome ${name}:`, error);
+        throw error;
+    }
+}
+
+async function loadGuildById(id) {
+    try {
+        const collection = getGuildsCollection(); // Use-a aqui também
+        return await collection.findOne({ _id: new ObjectId(id) });
+    } catch (error) {
+        console.error(`❌ Erro ao carregar guilda por ID ${id}:`, error);
         throw error;
     }
 }
 
 async function loadAllGuilds() {
-    const cacheKey = '__allGuilds__';
-    if (guildCache.has(cacheKey)) {
-        const cachedEntry = guildCache.get(cacheKey);
-        if (Date.now() - cachedEntry.timestamp < CACHE_TTL) {
-            console.log(`[CACHE HIT] Carregando todas as guildas do cache.`);
-            return JSON.parse(JSON.stringify(cachedEntry.data));
-        }
-    }
-    console.log(`[CACHE MISS] Lista completa de guildas não encontrada no cache ou expirada. Buscando no DB.`);
-    const db = getDatabaseInstance();
     try {
-        let guilds = await db.collection('guilds').find({}).toArray();
-        if (guilds && guilds.length > 0) {
-            guilds = guilds.map(normalizeGuildData);
-            guildCache.set(cacheKey, { data: guilds, timestamp: Date.now() });
-        }
-        return guilds;
+        const collection = getGuildsCollection(); // Use-a aqui também
+        return await collection.find({}).toArray();
     } catch (error) {
-        console.error("❌ Erro ao carregar todas as guildas do DB:", error);
+        console.error("❌ Erro ao carregar todas as guildas:", error);
         throw error;
     }
 }
 
-async function saveGuildData(guildData) {
-    const db = getDatabaseInstance();
-    const documentId = guildData.id || guildData._id;
-    const updatePayload = { ...guildData };
-    delete updatePayload._id;
-    delete updatePayload.id;
-    try {
-        let result;
-        if (documentId) {
-            result = await db.collection('guilds').updateOne(
-                { _id: documentId },
-                { $set: updatePayload },
-                { upsert: false }
-            );
-        } else {
-            result = await db.collection('guilds').updateOne(
-                { name: guildData.name },
-                { $set: updatePayload },
-                { upsert: true }
-            );
-        }
-        if (result.upsertedCount > 0 || result.modifiedCount > 0) {
-            console.log(`[CACHE INVALIDATED] Cache de guildas limpo devido à atualização/inserção da guilda '${guildData.name}'.`);
-            guildCache.clear();
-        }
-        return guildData;
-    } catch (error) {
-        console.error("❌ Erro ao salvar/atualizar guilda no DB:", error);
-        throw error;
-    }
-}
-
-async function deleteGuildByName(guildName) {
-    const db = getDatabaseInstance();
-    try {
-        const result = await db.collection('guilds').deleteOne({ name: { $regex: new RegExp(`^${guildName}$`, 'i') } });
-        if (result.deletedCount > 0) {
-            console.log(`[CACHE INVALIDATED] Cache de guildas limpo devido à deleção da guilda '${guildName}'.`);
-            guildCache.clear();
-            return true;
-        } else {
-            return false;
-        }
-    } catch (error) {
-        console.error(`❌ Erro ao deletar guilda "${guildName}" por nome no DB:`, error);
-        throw error;
-    }
-}
-
-async function findGuildByLeader(userId) {
-    const db = getDatabaseInstance();
-    try {
-        const guild = await db.collection('guilds').findOne({
-            $or: [
-                { 'leader.id': userId },
-                { 'coLeader.id': userId },
-                { 'mainRoster.id': userId },
-                { 'subRoster.id': userId }
-            ]
-        });
-        if (guild) return normalizeGuildData(guild);
-        return null; 
-    } catch (error) {
-        console.error(`❌ Erro ao encontrar guilda para o líder/co-líder ${userId} no DB:`, error);
-        throw error; 
-    }
-}
+// ... (outras funções como deleteGuildByName, findGuildByLeader, isUserInAnyGuild)
+// Certifique-se que TODAS elas chamam getGuildsCollection() para obter a coleção.
 
 async function isUserInAnyGuild(userId) {
-    const db = getDatabaseInstance();
     try {
-        const guild = await db.collection('guilds').findOne({
+        const collection = getGuildsCollection();
+        const query = {
             $or: [
-                { 'leader.id': userId },
-                { 'coLeader.id': userId },
-                { 'mainRoster.id': userId },
-                { 'subRoster.id': userId }
+                { "leader.id": userId },
+                { "coLeader.id": userId },
+                { "mainRoster.id": userId },
+                { "subRoster.id": userId }
             ]
-        });
-        if (guild) return normalizeGuildData(guild);
-        return null;
+        };
+        const guild = await collection.findOne(query);
+        return guild; // Retorna o objeto da guilda se encontrado, ou null
     } catch (error) {
-        console.error(`❌ Erro ao verificar se o usuário ${userId} está em alguma guilda:`, error);
+        console.error(`❌ Erro ao verificar se usuário ${userId} está em alguma guilda:`, error);
         throw error;
     }
 }
 
+// Exemplo para deleteGuildByName
+async function deleteGuildByName(name) {
+    try {
+        const collection = getGuildsCollection();
+        const result = await collection.deleteOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } });
+        return result.deletedCount > 0;
+    } catch (error) {
+        console.error(`❌ Erro ao deletar guilda por nome ${name}:`, error);
+        throw error;
+    }
+}
+
+// Exemplo para findGuildByLeader
+async function findGuildByLeader(userId) {
+    try {
+        const collection = getGuildsCollection();
+        return await collection.findOne({
+            $or: [
+                { "leader.id": userId },
+                { "coLeader.id": userId } // Considera co-líder também para encontrar "sua" guilda no painel
+            ]
+        });
+    } catch (error) {
+        console.error(`❌ Erro ao encontrar guilda pelo líder/co-líder ${userId}:`, error);
+        throw error;
+    }
+}
+
+
 module.exports = {
+    saveGuildData,
     loadGuildByName,
     loadGuildById,
     loadAllGuilds,
-    saveGuildData,
+    isUserInAnyGuild,
     deleteGuildByName,
     findGuildByLeader,
-    isUserInAnyGuild,
+    // getGuildsCollection, // Geralmente não se exporta a função getCollection diretamente
 };
