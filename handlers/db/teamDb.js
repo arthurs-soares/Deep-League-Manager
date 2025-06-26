@@ -43,6 +43,18 @@ async function loadTeamByName(teamName) {
     }
 }
 
+async function findTeamByLeader(userId) {
+    const db = getDatabaseInstance();
+    try {
+        const team = await db.collection('teams').findOne({ 'leader.id': userId });
+        if (team) return normalizeTeamData(team);
+        return null;
+    } catch (error) {
+        console.error(`❌ Erro ao buscar time por líder (ID: ${userId}):`, error);
+        throw error;
+    }
+}
+
 async function loadAllTeams() {
     const cacheKey = '__allTeams__';
     if (teamCache.has(cacheKey)) {
@@ -134,4 +146,5 @@ module.exports = {
     saveTeamData,
     deleteTeamByName,
     isUserInAnyTeam,
+    findTeamByLeader,
 };

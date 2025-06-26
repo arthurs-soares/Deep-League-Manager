@@ -207,10 +207,16 @@ async function routeModalSubmitInteraction(interaction, client, globalConfig) {
  * @param {Client} client - A instância do bot Discord.js.
  * @param {Object} globalConfig - Objeto de configuração global do bot.
  */
+function capitalize(str) {
+    if (!str) return str;
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 async function handleInteraction(interaction, client, globalConfig) {
     try {
+        const customId = interaction.customId; // Para botões, menus, modais
+
         // --- Comandos Slash ---
-        // Comandos Slash já têm um sistema de roteamento em client.commands
         if (interaction.isChatInputCommand()) {
             const command = client.commands.get(interaction.commandName);
             if (!command) {
@@ -218,18 +224,13 @@ async function handleInteraction(interaction, client, globalConfig) {
                 await interaction.reply({ content: `❌ Comando "${interaction.commandName}" não encontrado.`, flags: MessageFlags.Ephemeral });
                 return;
             }
-            // Executa o comando, passando interaction, client e globalConfig
             await command.execute(interaction, client, globalConfig);
         }
         // --- Botões ---
-                else if (interaction.isButton()) { // <--- ESTAMOS AQUI
-            const customId = interaction.customId;
+        else if (interaction.isButton()) {
             console.log(`[DEBUG InteractionHandler] Roteando botão: ${customId}`);
 
-            // <--- SUBSTITUA A LÓGICA DE ROTEAMENTO DE BOTÕES EXISTENTE POR ESTA: --->
             if (customId.startsWith('guildedit_button_')) {
-                // Chama o handler intermediário que sabe como parsear este customId
-                // Este handler está no final do seu interactionHandler.js ou em client.guildPanelHandlers
                 await client.guildPanelHandlers.handleGuildEditButton(interaction, client, globalConfig, customId);
             } else if (customId.startsWith('profile_leave_guild_')) {
                 const guildMongoId = customId.replace('profile_leave_guild_', '');
@@ -248,37 +249,44 @@ async function handleInteraction(interaction, client, globalConfig) {
             } else if (customId === 'war_request_dodge') {
                 await client.guildPanelHandlers.handleWarRequestDodgeButton(interaction, globalConfig, client);
             } else if (customId.startsWith('war_round_win_')) {
-                // O handleWarRoundButton já sabe como lidar com seu customId complexo
                 await client.guildPanelHandlers.handleWarRoundButton(interaction, client, globalConfig);
             }
-            // Guild Panel Buttons - Dropdown para gerenciar rosters
+            // Guild Panel Buttons
             else if (customId.startsWith('guildpanel_manage_rosters_dropdown_')) {
                 const guildIdSafe = customId.replace('guildpanel_manage_rosters_dropdown_', '');
                 await client.guildPanelHandlers.handleGuildPanelManageRosters_Initial(interaction, guildIdSafe, globalConfig, client);
             }
-            // Roteamento genérico para outros botões 'guildpanel_' (deve vir depois dos mais específicos)
-            // Esta chamada é para client.guildPanelHandlers.handleGuildPanelButton
+            // NOVO: Roteamento para botões do painel de time (mais específicos primeiro)
+            else if (customId.startsWith('teampanel_editprofile_')) {
+                const teamIdSafe = customId.replace('teampanel_editprofile_', '');
+                await client.guildPanelHandlers.handleTeamPanelEditProfile(interaction, teamIdSafe, globalConfig, client);
+            } else if (customId.startsWith('teampanel_manageroster_')) {
+                const teamIdSafe = customId.replace('teampanel_manageroster_', '');
+                await client.guildPanelHandlers.handleTeamPanelManageRoster(interaction, teamIdSafe, globalConfig, client);
+            }
+            // Roteamento genérico para outros botões 'guildpanel_' (deve vir depois dos mais específicos de guilda e time)
             else if (customId.startsWith('guildpanel_')) {
                 await client.guildPanelHandlers.handleGuildPanelButton(interaction, client, globalConfig, customId);
             }
             // Fallback para botões não tratados
-        else {
-            if (customId !== 'ranking_prev' && customId !== 'ranking_next' /* Adicione outros IDs de coletores aqui */) {
-                console.warn(`[InteractionHandler GLOBAL] CustomId de botão não tratado globalmente e não esperado por coletores: ${customId}`);
-                if (!interaction.replied && !interaction.deferred) {
-                   // Apenas responda se tiver CERTEZA que não é de um coletor
-                   // await interaction.reply({ content: `❌ Ação de botão global não reconhecida. (ID: ${customId})`, ephemeral: true });
-                }
+            else {
+                // Verifica se são botões de paginação do /visualizar (ranking_guilds_prev/next)
+                // ou ranking_prev/next (se você simplificou o ID ou tem outra paginação)
+                if (customId !== 'ranking_guilds_prev' && customId !== 'ranking_guilds_next' &&
+                    customId !== 'ranking_teams_prev' && customId !== 'ranking_teams_next' && // Adicionar estes
+                    customId !== 'ranking_prev' && customId !== 'ranking_next') {
+                    console.warn(`[InteractionHandler GLOBAL] CustomId de botão não tratado globalmente e não esperado por coletores: ${customId}`);
+                    if (!interaction.replied && !interaction.deferred) {
+                    }
             } else {
-                // Se for ranking_prev/next, apenas logue que o coletor do comando deve pegar
-                console.log(`[InteractionHandler GLOBAL] Botão ${customId} detectado, esperando que o coletor do comando /visualizar o trate.`);
+                    console.log(`[InteractionHandler GLOBAL] Botão de paginação ${customId} detectado, esperando que o coletor do comando /visualizar o trate.`);
             }
-        }
+
+            }
         } // Fim do else if (interaction.isButton())
 
         // --- Menus de Seleção (StringSelectMenu e UserSelectMenu) ---
-        else if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu()) { // <--- SEÇÃO DE MENUS DE SELEÇÃO
-            const customId = interaction.customId;
+        else if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu()) {
             console.log(`[DEBUG InteractionHandler] Roteando select menu "${customId}"`);
 
             if (customId.startsWith('manage_rosters_action_select_')) {
@@ -286,19 +294,14 @@ async function handleInteraction(interaction, client, globalConfig) {
                 await client.guildPanelHandlers.handleGuildPanelManageRosters_SelectAction(interaction, guildIdSafe, globalConfig, client);
             } else if (customId.startsWith('roster_select_type_')) {
                 const guildIdSafe = customId.replace('roster_select_type_', '');
-                // A função handleGuildPanelTrocarJogador_RosterSelect DEVE chamar interaction.showModal()
                 await client.guildPanelHandlers.handleGuildPanelTrocarJogador_RosterSelect(interaction, guildIdSafe, globalConfig, client);
             } else if (customId.startsWith('manageplayer_user_select_')) {
-                // O handler handleGuildPanelManagePlayer_SelectUser parseia o customId internamente
                 await client.guildPanelHandlers.handleGuildPanelManagePlayer_SelectUser(interaction, client, globalConfig, customId);
             } else if (customId.startsWith('manageplayer_roster_type_select_')) {
-                // O handler handleGuildPanelManagePlayer_SelectRosterType parseia o customId internamente
                 await client.guildPanelHandlers.handleGuildPanelManagePlayer_SelectRosterType(interaction, client, globalConfig, customId);
             } else if (customId === 'help_select_menu') {
                 console.log(`[DEBUG InteractionHandler] Menu 'help_select_menu' coletado, será tratado pelo coletor do comando /ajuda.`);
-                // Nenhuma ação aqui, o coletor do comando /ajuda lida com isso.
             }
-            // Fallback para menus não tratados
             else {
                 console.warn(`⚠️ CustomId de menu de seleção não tratado: ${customId}`);
                  if (!interaction.replied && !interaction.deferred) {
@@ -308,32 +311,35 @@ async function handleInteraction(interaction, client, globalConfig) {
         } // Fim do else if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu())
 
         // --- Modais (Envio de Formulários) ---
-        else if (interaction.type === InteractionType.ModalSubmit) { // <--- SEÇÃO DE MODAIS
-            const customId = interaction.customId;
+        else if (interaction.type === InteractionType.ModalSubmit) {
             console.log(`[DEBUG InteractionHandler] Routing modal submit "${customId}"`);
 
             if (customId.startsWith('guildedit_modal_')) {
-                // O handler handleGuildEditModalSubmit parseia o customId internamente
                 await client.guildPanelHandlers.handleGuildEditModalSubmit(interaction, client, globalConfig, customId);
             } else if (customId === 'modal_war_ticket_submit') {
                 await client.guildPanelHandlers.handleWarTicketModalSubmit(interaction, client, globalConfig, customId);
             } else if (customId.startsWith('modal_war_dodge_select_guild_')) {
-                // O handler handleWarDodgeSelectGuildSubmit parseia o customId internamente
                 await client.guildPanelHandlers.handleWarDodgeSelectGuildSubmit(interaction, client, globalConfig, customId);
             } else if (customId.startsWith('roster_edit_modal_')) {
-                const parts = customId.split('_'); // Ex: roster_edit_modal_main_my-guild-name
+                const parts = customId.split('_');
                 const guildIdSafe = parts.slice(4).join('_');
                 await client.guildPanelHandlers.handleGuildPanelTrocarJogador_RosterSubmit(interaction, guildIdSafe, globalConfig, client);
             } else if (customId.startsWith('modal_guildpanel_bulkaddmember_')) {
                 const guildIdSafe = customId.replace('modal_guildpanel_bulkaddmember_', '');
                 await client.guildPanelHandlers.handleGuildPanelBulkaddmemberSubmit(interaction, guildIdSafe, globalConfig, client);
             }
+            // NOVO: Roteamento para modais do painel de time
+            else if (customId.startsWith('modal_teampanel_editprofile_')) {
+                const teamIdSafe = customId.replace('modal_teampanel_editprofile_', '');
+                await client.guildPanelHandlers.handleTeamPanelEditProfileSubmit(interaction, teamIdSafe, globalConfig, client);
+            } else if (customId.startsWith('modal_teampanel_manageroster_')) {
+                const teamIdSafe = customId.replace('modal_teampanel_manageroster_', '');
+                await client.guildPanelHandlers.handleTeamPanelManageRosterSubmit(interaction, teamIdSafe, globalConfig, client);
+            }
             // Roteamento genérico para outros modais 'modal_guildpanel_'
             else if (customId.startsWith('modal_guildpanel_')) {
-                // O handler handleGuildPanelModalSubmit parseia o customId internamente
                 await client.guildPanelHandlers.handleGuildPanelModalSubmit(interaction, client, globalConfig, customId);
             }
-            // Fallback para modais não tratados
             else {
                  console.warn(`⚠️ CustomId de modal não tratado: ${customId}`);
                  if (!interaction.replied && !interaction.deferred) {
@@ -343,20 +349,18 @@ async function handleInteraction(interaction, client, globalConfig) {
         } // Fim do else if (interaction.type === InteractionType.ModalSubmit)
 
         // --- Autocomplete ---
-        else if (interaction.isAutocomplete()) { // <--- ADICIONAR ESTA SEÇÃO COMPLETA
+        else if (interaction.isAutocomplete()) {
             const command = client.commands.get(interaction.commandName);
-            // Verifica se o comando existe e se ele TEM uma função autocomplete
             if (!command || typeof command.autocomplete !== 'function') {
                 console.warn(`Autocomplete não encontrado ou não é uma função para o comando ${interaction.commandName}`);
-                await interaction.respond([]).catch(() => {}); // Responde vazio para não travar
+                await interaction.respond([]).catch(() => {});
                 return;
             }
             try {
-                // Chama a função autocomplete do comando específico
                 await command.autocomplete(interaction, client, globalConfig);
             } catch (error) {
                 console.error(`Erro durante autocomplete para ${interaction.commandName}:`, error);
-                await interaction.respond([]).catch(() => {}); // Responde vazio em caso de erro
+                await interaction.respond([]).catch(() => {});
             }
         } // Fim do else if (interaction.isAutocomplete())
 
@@ -458,6 +462,92 @@ async function handleGuildPanelModalSubmit(interaction, client, globalConfig, cu
         await finalHandler(interaction, guildIdSafe, globalConfig, client);
     } else {
         console.error(`[ERROR handleGuildPanelModalSubmit] Final handler "${finalHandlerName}" not found for modal submit "${customId}".`);
+    }
+}
+
+async function handleGuildEditButton(interaction, client, globalConfig, customId) {
+    // customId format: guildedit_button_FIELD_MONGOID
+    const parts = customId.split('_');
+    if (parts.length < 4) {
+        console.error(`[ERROR handleGuildEditButton] Invalid customId format: ${customId}`);
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: '❌ Erro interno: Formato de ID de botão de edição inválido.', ephemeral: true });
+        }
+        return;
+    }
+    const fieldToEdit = parts[2];
+    const guildMongoId = parts.slice(3).join('_');
+    const finalHandlerName = `handleGuildShowEdit${capitalize(fieldToEdit)}Modal`;
+    const finalHandler = client.guildPanelHandlers[finalHandlerName];
+
+    if (typeof finalHandler === 'function') {
+        await finalHandler(interaction, guildMongoId, globalConfig, client);
+    } else {
+        console.error(`[ERROR handleGuildEditButton] Final handler "${finalHandlerName}" not found for customId "${customId}".`);
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: `❌ Erro interno: Handler final para edição de "${fieldToEdit}" não configurado.`, ephemeral: true });
+        }
+    }
+}
+
+async function handleGuildPanelButton(interaction, client, globalConfig, customId) {
+    // customId format: guildpanel_ACTION_GUILDIDSAFE_OR_MONGOID
+    const parts = customId.split('_');
+     if (parts.length < 3) {
+        console.error(`[ERROR handleGuildPanelButton] Invalid customId format: ${customId}`);
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: '❌ Erro interno: Formato de ID de botão de painel inválido.', ephemeral: true });
+        }
+        return;
+    }
+    const action = parts[1];
+    const guildIdSafeOrMongoId = parts.slice(2).join('_');
+    const finalHandlerName = `handleGuildPanel${capitalize(action)}`;
+    const finalHandler = client.guildPanelHandlers[finalHandlerName];
+
+    if (typeof finalHandler === 'function') {
+        await finalHandler(interaction, guildIdSafeOrMongoId, globalConfig, client);
+    } else {
+        console.error(`[ERROR handleGuildPanelButton] Final handler "${finalHandlerName}" not found for customId "${customId}".`);
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: `❌ Erro interno: Handler final para ação de painel "${action}" não configurado.`, ephemeral: true });
+        }
+    }
+}
+
+async function handleGuildEditModalSubmit(interaction, client, globalConfig, customId) {
+    // customId format: guildedit_modal_FIELD_MONGOID
+    const parts = customId.split('_');
+    const fieldToEdit = parts[2];
+    const guildMongoId = parts.slice(3).join('_');
+    const finalHandlerName = `handleGuildEdit${capitalize(fieldToEdit)}Submit`;
+    const finalHandler = client.guildPanelHandlers[finalHandlerName];
+
+    if (typeof finalHandler === 'function') {
+        await finalHandler(interaction, guildMongoId, globalConfig, client);
+    } else {
+        console.error(`[ERROR handleGuildEditModalSubmit] Final handler "${finalHandlerName}" not found for modal submit "${customId}".`);
+         if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: `❌ Erro interno: Handler para submissão de formulário de "${fieldToEdit}" não configurado.`, ephemeral: true });
+        }
+    }
+}
+
+async function handleGuildPanelModalSubmit(interaction, client, globalConfig, customId) {
+    // customId format: modal_guildpanel_ACTION_GUILDIDSAFE
+    const parts = customId.split('_');
+    const action = parts[2];
+    const guildIdSafe = parts.slice(3).join('_');
+    const finalHandlerName = `handleGuildPanel${capitalize(action)}Submit`;
+    const finalHandler = client.guildPanelHandlers[finalHandlerName];
+
+    if (typeof finalHandler === 'function') {
+        await finalHandler(interaction, guildIdSafe, globalConfig, client);
+    } else {
+        console.error(`[ERROR handleGuildPanelModalSubmit] Final handler "${finalHandlerName}" not found for modal submit "${customId}".`);
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: `❌ Erro interno: Handler para submissão de formulário de painel "${action}" não configurado.`, ephemeral: true });
+        }
     }
 }
 

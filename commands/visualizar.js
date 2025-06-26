@@ -1,179 +1,224 @@
 // commands/visualizar.js
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, MessageFlags } = require('discord.js'); // Adicionado ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, MessageFlags } = require('discord.js');
 const { loadAllGuilds, loadGuildByName } = require('../handlers/db/guildDb');
-const { resolveDisplayColor } = require('../handlers/utils/constants');
+const { loadAllTeams, loadTeamByName } = require('../handlers/db/teamDb');
+const { resolveDisplayColor, MAX_ROSTER_SIZE, TEAM_MAX_ROSTER_SIZE } = require('../handlers/utils/constants');
 
-const ITEMS_PER_PAGE = 10; // Define quantas guildas por página
+const ITEMS_PER_PAGE = 10; // Usaremos isso para ambos os rankings
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('visualizar')
-        .setDescription('Visualiza o ranking de guildas ou o perfil de uma guilda específica.')
-        .addStringOption(option =>
-            option.setName('guilda')
-                .setDescription('Nome da guilda para ver detalhes (comece a digitar para ver sugestões)')
+        .setDescription('Visualiza rankings ou o perfil de uma guilda/time específico.')
+        .addStringOption(option => // Opção para ver perfil específico
+            option.setName('nome_entidade')
+                .setDescription('Nome da guilda ou time para ver detalhes (comece a digitar)')
                 .setRequired(false)
-                .setAutocomplete(true)),
+                .setAutocomplete(true))
+        .addStringOption(option => // Opção para escolher o tipo de ranking
+            option.setName('ranking_tipo')
+                .setDescription('Escolha qual ranking visualizar (se "nome_entidade" estiver vazio)')
+                .setRequired(false)
+                .addChoices(
+                    { name: 'Guildas', value: 'guildas' },
+                    { name: 'Times', value: 'times' }
+                )),
 
     async execute(interaction, client, globalConfig) {
         await interaction.deferReply();
-        const guildNameToSearch = interaction.options.getString('guilda');
+        const nameToSearch = interaction.options.getString('nome_entidade');
+        const rankingType = interaction.options.getString('ranking_tipo');
 
-        if (!guildNameToSearch) {
-            // MODO RANKING COM PAGINAÇÃO
-            const allGuilds = await loadAllGuilds();
-            if (!allGuilds || allGuilds.length === 0) {
-                return interaction.editReply({ content: '❌ Nenhuma guilda foi registrada no bot ainda.' });
+        // --- MODO: VISUALIZAR PERFIL ESPECÍFICO (Guilda ou Time) ---
+        if (nameToSearch) {
+            let entity = await loadGuildByName(nameToSearch);
+            let entityType = 'Guilda';
+
+            if (!entity) {
+                entity = await loadTeamByName(nameToSearch);
+                entityType = 'Time';
             }
 
-            const sortedGuilds = allGuilds.sort((a, b) => {
-                const winsA = a.score?.wins || 0;
-                const winsB = b.score?.wins || 0;
-                if (winsB !== winsA) return winsB - winsA;
-                const lossesA = a.score?.losses || 0;
-                const lossesB = b.score?.losses || 0;
-                return lossesA - lossesB;
-            });
+            if (!entity) {
+                return interaction.editReply({ content: `❌ "${nameToSearch}" não encontrado como Guilda ou Time!`, flags: MessageFlags.Ephemeral });
+            }
 
-            const totalPages = Math.ceil(sortedGuilds.length / ITEMS_PER_PAGE);
-            let currentPage = 0;
+            // ... (O código para construir e enviar o embed de DETALHES da guilda/time permanece o MESMO que você já tem)
+            // Cole aqui a seção "MODO DETALHES DE GUILDA OU TIME" da sua versão anterior do visualizar.js
+            // Certifique-se de usar a constante correta para o tamanho do roster do time (TEAM_MAX_ROSTER_SIZE)
+            const embedColor = resolveDisplayColor(entity.color, globalConfig);
+            const detailEmbed = new EmbedBuilder()
+                .setTitle(`${entityType === 'Guilda' ? '🏰' : '⚽'} ${entity.name}`)
+                .setColor(embedColor)
+                .setTimestamp();
 
-            const generateEmbed = (page) => {
-                const startIndex = page * ITEMS_PER_PAGE;
-                const endIndex = startIndex + ITEMS_PER_PAGE;
-                const currentGuilds = sortedGuilds.slice(startIndex, endIndex);
+            if (entity.logo) detailEmbed.setThumbnail(entity.logo);
+            if (entityType === 'Guilda' && entity.banner) detailEmbed.setImage(entity.banner);
 
-                const description = currentGuilds.map((guild, index) => {
-                    const globalIndex = startIndex + index; // Índice global no ranking
-                    let rankEmoji = `**${globalIndex + 1}º** `;
-                    if (globalIndex === 0) rankEmoji = '🥇 ';
-                    else if (globalIndex === 1) rankEmoji = '🥈 ';
-                    else if (globalIndex === 2) rankEmoji = '🥉 ';
+            let descriptionTextDetail = entityType === 'Guilda' ? (entity.description || '*Esta guilda ainda não tem uma descrição.*') : `Time liderado por <@${entity.leader.id}>.`;
+            if (entityType === 'Guilda' && entity.link) descriptionTextDetail += `\n\n**[Visite o servidor da guilda](${entity.link})**`;
+            if (entityType === 'Guilda' && entity.forumPostId && globalConfig.guildRosterForumChannelId) {
+                descriptionTextDetail += `\n**[Ver Post no Fórum](https://discord.com/channels/${interaction.guild.id}/${globalConfig.guildRosterForumChannelId}/${entity.forumPostId})**`;
+            }
+            detailEmbed.setDescription(descriptionTextDetail);
 
-                    const wins = guild.score?.wins || 0;
-                    const losses = guild.score?.losses || 0;
-                    const totalGames = wins + losses;
-                    const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
-                    const scoreInfo = totalGames > 0 ? `**${wins}V** / **${losses}D** (${winRate}%)` : '*Sem partidas*';
-                    return `${rankEmoji} **${guild.name}**\n   └ 👑 <@${guild.leader.id}> • 📊 ${scoreInfo}`;
-                }).join('\n\n') || 'Nenhuma guilda nesta página.';
+            detailEmbed.addFields({ name: '👑 Líder', value: `<@${entity.leader.id}>`, inline: true });
+            if (entityType === 'Guilda' && entity.coLeader) {
+                detailEmbed.addFields({ name: '⭐ Vice-Líder', value: `<@${entity.coLeader.id}>`, inline: true });
+            }
+            detailEmbed.addFields({ name: '📊 Desempenho', value: `**Score:** ${entity.score?.wins || 0}V / ${entity.score?.losses || 0}D`, inline: true });
 
-                return new EmbedBuilder()
-                    .setTitle('🏆 Ranking de Guildas')
-                    .setColor(globalConfig.embedColor || '#FFC700')
-                    .setDescription('As guildas são classificadas pelo número de vitórias (e menos derrotas em caso de empate).\n\n' + description)
-                    .setFooter({ text: `Página ${page + 1} de ${totalPages} • Total de ${allGuilds.length} guildas` })
-                    .setTimestamp();
-            };
+            if (entityType === 'Guilda') {
+                const mainRosterCount = entity.mainRoster?.length || 0;
+                const subRosterCount = entity.subRoster?.length || 0;
+                let rosterStatus = '🔴 Incompleta';
+                if (mainRosterCount >= MAX_ROSTER_SIZE) rosterStatus = (subRosterCount >= MAX_ROSTER_SIZE) ? '🟢 Completa' : '🟡 Parcial';
 
-            const generateButtons = (page) => {
-                return new ActionRowBuilder()
-                    .addComponents(
-                        new ButtonBuilder()
-                            .setCustomId('ranking_prev')
-                            .setLabel('⬅️ Anterior')
-                            .setStyle(ButtonStyle.Primary)
-                            .setDisabled(page === 0),
-                        new ButtonBuilder()
-                            .setCustomId('ranking_next')
-                            .setLabel('Próxima ➡️')
-                            .setStyle(ButtonStyle.Primary)
-                            .setDisabled(page >= totalPages - 1)
-                    );
-            };
+                detailEmbed.addFields({ name: '📋 Status do Roster', value: rosterStatus, inline: true });
+                const mainRosterText = mainRosterCount > 0 ? entity.mainRoster.map((p, i) => `> ${i + 1}. <@${p.id}>`).join('\n') : '> *Vazio*';
+                const subRosterText = subRosterCount > 0 ? entity.subRoster.map((p, i) => `> ${i + 1}. <@${p.id}>`).join('\n') : '> *Vazio*';
+                detailEmbed.addFields(
+                    { name: `🛡️ Roster Principal (${mainRosterCount > MAX_ROSTER_SIZE ? `${MAX_ROSTER_SIZE}+` : mainRosterCount}/${MAX_ROSTER_SIZE})`, value: mainRosterText, inline: true },
+                    { name: `⚔️ Roster Reserva (${subRosterCount > MAX_ROSTER_SIZE ? `${MAX_ROSTER_SIZE}+` : subRosterCount}/${MAX_ROSTER_SIZE})`, value: subRosterText, inline: true }
+                );
+            } else { // Time
+                const rosterCount = entity.roster?.length || 0;
+                const rosterText = rosterCount > 0 ? entity.roster.map((p, i) => `> ${i + 1}. <@${p.id}>`).join('\n') : '> *Vazio*';
+                detailEmbed.addFields({ name: `👥 Roster do Time (${rosterCount}/${TEAM_MAX_ROSTER_SIZE || 7})`, value: rosterText, inline: false });
+            }
 
-            const initialEmbed = generateEmbed(currentPage);
-            const initialButtons = generateButtons(currentPage);
+            let footerText = `📅 Criada em: <t:${Math.floor(new Date(entity.createdAt).getTime() / 1000)}:D>`;
+            if (entity.updatedAt && entity.updatedAt !== entity.createdAt) footerText += `\n🔄 Última atualização: <t:${Math.floor(new Date(entity.updatedAt).getTime() / 1000)}:R>`;
+            detailEmbed.setFooter({ text: footerText });
 
-            const message = await interaction.editReply({
-                embeds: [initialEmbed],
-                components: totalPages > 1 ? [initialButtons] : [] // Só mostra botões se houver mais de uma página
-            });
-
-            if (totalPages <= 1) return; // Não precisa de coletor se for apenas uma página
-
-            const filter = i => (i.customId === 'ranking_prev' || i.customId === 'ranking_next') && i.user.id === interaction.user.id;
-            const collector = message.createMessageComponentCollector({ filter, componentType: ComponentType.Button, time: 120000 }); // Coletor por 2 minutos
-
-            collector.on('collect', async i => {
-                await i.deferUpdate(); // Acknowledge o clique no botão
-
-                if (i.customId === 'ranking_prev') {
-                    currentPage--;
-                } else if (i.customId === 'ranking_next') {
-                    currentPage++;
-                }
-
-                const newEmbed = generateEmbed(currentPage);
-                const newButtons = generateButtons(currentPage);
-                await i.editReply({ embeds: [newEmbed], components: [newButtons] });
-            });
-
-            collector.on('end', async collected => {
-                // Remove os botões após o coletor expirar ou ser parado
-                const finalEmbed = generateEmbed(currentPage); // Gera o embed da última página visualizada
-                await message.edit({ embeds: [finalEmbed], components: [] }).catch(console.error);
-            });
-
-            return; // Retorna para não executar o código de visualização de guilda individual
+            return await interaction.editReply({ embeds: [detailEmbed] });
         }
 
-        // MODO DETALHES DE GUILDA (código existente, sem alterações)
-        const guild = await loadGuildByName(guildNameToSearch);
-        if (!guild) {
-            return interaction.editReply({ content: `❌ Guilda "${guildNameToSearch}" não encontrada!`, flags: MessageFlags.Ephemeral });
+        // --- MODO: VISUALIZAR RANKING (Guildas OU Times) ---
+        // Se 'nome_entidade' está vazio, verificamos 'ranking_tipo'
+        // Se 'ranking_tipo' também estiver vazio, padrão para ranking de guildas
+
+        const typeToDisplay = rankingType || 'guildas'; // Padrão para guildas
+        let dataArray, title, entityLabel, itemsPerPage, buttonPrefix;
+
+        if (typeToDisplay === 'guildas') {
+            dataArray = await loadAllGuilds();
+            title = '🏆 Ranking de Guildas';
+            entityLabel = 'Guilda';
+            itemsPerPage = ITEMS_PER_PAGE; // Usando a constante global
+            buttonPrefix = 'ranking_guilds';
+        } else if (typeToDisplay === 'times') {
+            dataArray = await loadAllTeams();
+            title = '⚽ Ranking de Times';
+            entityLabel = 'Time';
+            itemsPerPage = ITEMS_PER_PAGE; // Pode ajustar se quiser diferente para times
+            buttonPrefix = 'ranking_teams';
+        } else {
+            // Caso o valor de ranking_tipo seja inválido (não deve acontecer com choices)
+            return interaction.editReply({ content: '❌ Tipo de ranking inválido selecionado.' });
         }
 
-        const mainRosterCount = guild.mainRoster?.length || 0;
-        const subRosterCount = guild.subRoster?.length || 0;
-        const wins = guild.score?.wins || 0;
-        const losses = guild.score?.losses || 0;
-        const totalGames = wins + losses;
-        const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
-        let rosterStatus = '🔴 Incompleta';
-        if (mainRosterCount >= globalConfig.MAX_ROSTER_SIZE_MAIN || MAX_ROSTER_SIZE) rosterStatus = (subRosterCount >= globalConfig.MAX_ROSTER_SIZE_SUB || MAX_ROSTER_SIZE) ? '🟢 Completa' : '🟡 Parcial';
-
-
-        const embedColor = resolveDisplayColor(guild.color, globalConfig);
-        const embed = new EmbedBuilder()
-            .setTitle(`🏰 ${guild.name}`)
-            .setColor(embedColor);
-
-        let descriptionText = guild.description ? `*${guild.description}*` : '*Esta guilda ainda não tem uma descrição.*';
-        if(guild.link) descriptionText += `\n\n**[Visite o servidor da guilda](${guild.link})**`;
-        if (guild.forumPostId && globalConfig.guildRosterForumChannelId) {
-            descriptionText += `\n**[Ver Post no Fórum](https://discord.com/channels/${interaction.guild.id}/${globalConfig.guildRosterForumChannelId}/${guild.forumPostId})**`;
+        if (!dataArray || dataArray.length === 0) {
+            return interaction.editReply({ content: `❌ Nenhum(a) ${entityLabel.toLowerCase()}(s) registrado(a) ainda.` });
         }
-        embed.setDescription(descriptionText);
 
-        if (guild.logo) embed.setThumbnail(guild.logo);
-        if (guild.banner) embed.setImage(guild.banner);
+        const sortedData = [...dataArray].sort((a, b) => { // Criar cópia para sort
+            const winsA = a.score?.wins || 0;
+            const winsB = b.score?.wins || 0;
+            if (winsB !== winsA) return winsB - winsA;
+            const lossesA = a.score?.losses || 0;
+            const lossesB = b.score?.losses || 0;
+            return lossesA - lossesB;
+        });
 
-        embed.addFields(
-            { name: '👑 Liderança', value: `**Líder:** <@${guild.leader.id}>\n**Vice:** ${guild.coLeader ? `<@${guild.coLeader.id}>` : '*Não Definido*'}`, inline: true },
-            { name: '📊 Desempenho', value: `**Score:** ${wins}V / ${losses}D\n**Aproveitamento:** ${winRate}%`, inline: true },
-            { name: '📋 Status do Roster', value: `${rosterStatus}`, inline: true }
-        );
-        const mainRosterText = mainRosterCount > 0 ? guild.mainRoster.map((p, i) => `> ${i + 1}. <@${p.id}>`).join('\n') : '> *Vazio*';
-        const subRosterText = subRosterCount > 0 ? guild.subRoster.map((p, i) => `> ${i + 1}. <@${p.id}>`).join('\n') : '> *Vazio*';
-        embed.addFields(
-            { name: `🛡️ Roster Principal (${mainRosterCount > (globalConfig.MAX_ROSTER_SIZE_MAIN || MAX_ROSTER_SIZE) ? `${(globalConfig.MAX_ROSTER_SIZE_MAIN || MAX_ROSTER_SIZE)}+` : mainRosterCount}/${(globalConfig.MAX_ROSTER_SIZE_MAIN || MAX_ROSTER_SIZE)})`, value: mainRosterText, inline: true },
-            { name: `⚔️ Roster Reserva (${subRosterCount > (globalConfig.MAX_ROSTER_SIZE_SUB || MAX_ROSTER_SIZE) ? `${(globalConfig.MAX_ROSTER_SIZE_SUB || MAX_ROSTER_SIZE)}+` : subRosterCount}/${(globalConfig.MAX_ROSTER_SIZE_SUB || MAX_ROSTER_SIZE)})`, value: subRosterText, inline: true }
-        );
-        
+        const totalPages = Math.ceil(sortedData.length / itemsPerPage);
+        let currentPage = 0;
 
-        let footerText = `📅 Criada em: <t:${Math.floor(new Date(guild.createdAt).getTime() / 1000)}:D>`;
-        if (guild.updatedAt && guild.updatedAt !== guild.createdAt) footerText += `\n🔄 Última atualização: <t:${Math.floor(new Date(guild.updatedAt).getTime() / 1000)}:R>`;
-        embed.setFooter({ text: footerText });
+        const generateEmbed = (page) => {
+            const startIndex = page * itemsPerPage;
+            const currentItems = sortedData.slice(startIndex, startIndex + itemsPerPage);
 
-        await interaction.editReply({ embeds: [embed] });
+            const description = currentItems.map((item, index) => {
+                const globalIndex = startIndex + index;
+                let rankEmoji = `**${globalIndex + 1}º** `;
+                if (globalIndex === 0) rankEmoji = entityLabel === 'Guilda' ? '🥇 ' : '🏆 ';
+                else if (globalIndex === 1) rankEmoji = entityLabel === 'Guilda' ? '🥈 ' : '🏅 ';
+                else if (globalIndex === 2) rankEmoji = entityLabel === 'Guilda' ? '🥉 ' : '🎖️ ';
+
+                const wins = item.score?.wins || 0;
+                const losses = item.score?.losses || 0;
+                const totalGames = wins + losses;
+                const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
+                const scoreInfo = totalGames > 0 ? `**${wins}V** / **${losses}D** (${winRate}%)` : '*Sem partidas*';
+                return `${rankEmoji} **${item.name}** (${entityLabel})\n   └ 👑 <@${item.leader.id}> • 📊 ${scoreInfo}`;
+            }).join('\n\n') || `*Nenhum(a) ${entityLabel.toLowerCase()}(s) nesta página.*`;
+
+            return new EmbedBuilder()
+                .setTitle(title)
+                .setColor(globalConfig.embedColor || '#FFC700')
+                .setDescription(`Os ${entityLabel.toLowerCase()}s são classificados pelo número de vitórias (e menos derrotas em caso de empate).\n\n` + description)
+                .setFooter({ text: `Página ${page + 1} de ${totalPages} • Total de ${sortedData.length} ${entityLabel.toLowerCase()}(s)` })
+                .setTimestamp();
+        };
+
+        const generateButtons = (page) => {
+            return new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`${buttonPrefix}_prev`)
+                        .setLabel('⬅️ Anterior')
+                        .setStyle(ButtonStyle.Primary)
+                        .setDisabled(page === 0),
+                    new ButtonBuilder()
+                        .setCustomId(`${buttonPrefix}_next`)
+                        .setLabel('Próxima ➡️')
+                        .setStyle(ButtonStyle.Primary)
+                        .setDisabled(page >= totalPages - 1)
+                );
+        };
+
+        const initialEmbed = generateEmbed(currentPage);
+        const initialButtons = totalPages > 1 ? [generateButtons(currentPage)] : [];
+        const message = await interaction.editReply({ embeds: [initialEmbed], components: initialButtons });
+
+        if (totalPages <= 1) return;
+
+        const filter = i => (i.customId === `${buttonPrefix}_prev` || i.customId === `${buttonPrefix}_next`) && i.user.id === interaction.user.id;
+        const collector = message.createMessageComponentCollector({ filter, componentType: ComponentType.Button, time: 180000 }); // 3 minutos
+
+        collector.on('collect', async i => {
+            await i.deferUpdate();
+            if (i.customId === `${buttonPrefix}_prev`) currentPage--;
+            else if (i.customId === `${buttonPrefix}_next`) currentPage++;
+
+            await i.editReply({ embeds: [generateEmbed(currentPage)], components: [generateButtons(currentPage)] });
+        });
+
+        collector.on('end', async () => {
+            await message.edit({ embeds: [generateEmbed(currentPage)], components: [] }).catch(console.error);
+        });
     },
 
-    // Adicione a função autocomplete aqui também, se ainda não tiver
     async autocomplete(interaction, client, globalConfig) {
         const focusedOption = interaction.options.getFocused(true);
-        if (focusedOption.name === 'guilda') {
-            await client.guildPanelHandlers.autocompleteGuilds(interaction);
+        // O autocomplete agora só faz sentido para 'nome_entidade'
+        if (focusedOption.name === 'nome_entidade') {
+            const focusedValue = focusedOption.value.toLowerCase();
+            const guilds = await loadAllGuilds();
+            const teams = await loadAllTeams();
+
+            const filteredGuilds = guilds
+                .filter(guild => guild.name.toLowerCase().includes(focusedValue))
+                .map(guild => ({ name: `${guild.name} (Guilda)`, value: guild.name }));
+
+            const filteredTeams = teams
+                .filter(team => team.name.toLowerCase().includes(focusedValue))
+                .map(team => ({ name: `${team.name} (Time)`, value: team.name }));
+            
+            let combinedResults = [...filteredGuilds, ...filteredTeams];
+            combinedResults.sort((a,b) => a.name.localeCompare(b.name));
+            
+            await interaction.respond(combinedResults.slice(0, 25));
         }
     }
 };
