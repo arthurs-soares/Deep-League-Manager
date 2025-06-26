@@ -262,12 +262,18 @@ async function handleInteraction(interaction, client, globalConfig) {
                 await client.guildPanelHandlers.handleGuildPanelButton(interaction, client, globalConfig, customId);
             }
             // Fallback para botões não tratados
-            else {
-                console.warn(`⚠️ CustomId de botão não tratado: ${customId}`);
+        else {
+            if (customId !== 'ranking_prev' && customId !== 'ranking_next' /* Adicione outros IDs de coletores aqui */) {
+                console.warn(`[InteractionHandler GLOBAL] CustomId de botão não tratado globalmente e não esperado por coletores: ${customId}`);
                 if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: `❌ Ação de botão não reconhecida. (ID: ${customId})`, ephemeral: true });
+                   // Apenas responda se tiver CERTEZA que não é de um coletor
+                   // await interaction.reply({ content: `❌ Ação de botão global não reconhecida. (ID: ${customId})`, ephemeral: true });
                 }
+            } else {
+                // Se for ranking_prev/next, apenas logue que o coletor do comando deve pegar
+                console.log(`[InteractionHandler GLOBAL] Botão ${customId} detectado, esperando que o coletor do comando /visualizar o trate.`);
             }
+        }
         } // Fim do else if (interaction.isButton())
 
         // --- Menus de Seleção (StringSelectMenu e UserSelectMenu) ---
