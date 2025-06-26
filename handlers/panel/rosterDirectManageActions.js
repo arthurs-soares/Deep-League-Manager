@@ -19,11 +19,6 @@ async function handleGuildPanelManagePlayer_SelectUser(interaction, client, glob
     console.log(`[DIAGNÓSTICO JOGADOR] handleGuildPanelManagePlayer_SelectUser INICIADO. Ação: ${actionType}, Usuário ID: ${interaction.users.first()?.id}`);
 
     // --- DEFERIR A INTERAÇÃO DO MENU DE SELEÇÃO DE USUÁRIO AQUI ---
-    // A interação original é a seleção no UserSelectMenu.
-    // Precisamos respondê-la (ou deferi-la) antes de operações demoradas.
-    // Como não sabemos qual case do switch será, e 'move' envia outro componente,
-    // é melhor deferir a resposta original do menu de seleção de usuário aqui.
-    // A exceção é se a ação for 'move', que precisa enviar um novo menu.
     if (actionType !== 'move') { // Só defere para 'add' e 'remove' por enquanto
         try {
             // Atualiza a mensagem original para remover os componentes e indicar processamento
@@ -39,9 +34,6 @@ async function handleGuildPanelManagePlayer_SelectUser(interaction, client, glob
             }
         }
     } else {
-        // Para 'move', a resposta será um novo menu, então um defer simples aqui não é o ideal.
-        // A interação do 'move' será respondida com interaction.reply (ou followUp se o update falhar) com o novo menu.
-        // Se o update falhar, o followUp é a única opção.
          try {
             await interaction.update({ components: [] }); // Apenas remove os componentes
         } catch (error) {
@@ -55,12 +47,6 @@ async function handleGuildPanelManagePlayer_SelectUser(interaction, client, glob
         const selectedUserId = interaction.users.first().id;
         const guild = await getAndValidateGuild(guildIdSafe, interaction, globalConfig, client, loadGuildByName, false, true);
         if (!guild) {
-            // getAndValidateGuild já respondeu se a guilda não for válida ou não houver permissão.
-            // Se a interação foi deferida acima, a resposta de getAndValidateGuild (que usa reply) pode falhar.
-            // getAndValidateGuild precisa ser adaptado para usar editReply se interaction.deferred for true.
-            // Por simplicidade, vamos assumir que getAndValidateGuild lida com isso ou que a falha é rara.
-            // Se a interação já foi deferida e getAndValidateGuild tenta usar reply, vai dar erro.
-            // Solução robusta: getAndValidateGuild precisaria de um parâmetro para saber se deve usar editReply.
             console.log(`[DIAGNÓSTICO JOGADOR] getAndValidateGuild retornou nulo para ${guildIdSafe} na ação ${actionType}.`);
             if (interaction.deferred && !interaction.replied) { // Se foi deferido e não respondido
                 await interaction.editReply({ content: '❌ Guilda não encontrada ou acesso negado (após defer).', components: [] });

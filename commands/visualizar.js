@@ -11,13 +11,13 @@ module.exports = {
         .setName('visualizar')
         .setDescription('Visualiza rankings ou o perfil de uma guilda/time específico.')
         .addStringOption(option => // Opção para ver perfil específico
-            option.setName('nome_entidade')
+            option.setName('nome')
                 .setDescription('Nome da guilda ou time para ver detalhes (comece a digitar)')
                 .setRequired(false)
                 .setAutocomplete(true))
         .addStringOption(option => // Opção para escolher o tipo de ranking
-            option.setName('ranking_tipo')
-                .setDescription('Escolha qual ranking visualizar (se "nome_entidade" estiver vazio)')
+            option.setName('tipo')
+                .setDescription('Escolha qual ranking visualizar (se "nome" estiver vazio)')
                 .setRequired(false)
                 .addChoices(
                     { name: 'Guildas', value: 'guildas' },
@@ -26,8 +26,8 @@ module.exports = {
 
     async execute(interaction, client, globalConfig) {
         await interaction.deferReply();
-        const nameToSearch = interaction.options.getString('nome_entidade');
-        const rankingType = interaction.options.getString('ranking_tipo');
+        const nameToSearch = interaction.options.getString('nome');
+        const rankingType = interaction.options.getString('tipo');
 
         // --- MODO: VISUALIZAR PERFIL ESPECÍFICO (Guilda ou Time) ---
         if (nameToSearch) {
@@ -202,7 +202,7 @@ module.exports = {
     async autocomplete(interaction, client, globalConfig) {
         const focusedOption = interaction.options.getFocused(true);
         // O autocomplete agora só faz sentido para 'nome_entidade'
-        if (focusedOption.name === 'nome_entidade') {
+        if (focusedOption.name === 'nome') {
             const focusedValue = focusedOption.value.toLowerCase();
             const guilds = await loadAllGuilds();
             const teams = await loadAllTeams();

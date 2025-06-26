@@ -1,6 +1,6 @@
 // commands/guilda-painel.js
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, PermissionFlagsBits } = require('discord.js');
-const { findGuildByLeader, loadGuildByName } = require('../handlers/db/guildDb');
+const { findGuildByLeader, loadGuildByName, loadAllGuilds } = require('../handlers/db/guildDb');
 const { resolveDisplayColor } = require('../handlers/utils/constants');
 
 module.exports = {
@@ -11,7 +11,7 @@ module.exports = {
             option.setName('guilda')
                 .setDescription('Nome da guilda para gerenciar (apenas moderadores, comece a digitar)')
                 .setRequired(false)
-                .setAutocomplete(true)), // <-- Autocomplete habilitado
+                .setAutocomplete(true)),
 
     async execute(interaction, client, globalConfig) {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
@@ -76,5 +76,21 @@ module.exports = {
             embeds: [panelEmbed],
             components: [row1, row2]
         });
-    },
+    }, // <--- ADICIONE A VÍRGULA AQUI
+
+    async autocomplete(interaction, client, globalConfig) {
+        const focusedOption = interaction.options.getFocused(true);
+
+        if (focusedOption.name === 'guilda') {
+            const focusedValue = focusedOption.value;
+            const allGuilds = await loadAllGuilds();
+            const filtered = allGuilds
+                .filter(guild => guild.name.toLowerCase().startsWith(focusedValue.toLowerCase()))
+                .slice(0, 25);
+
+            await interaction.respond(
+                filtered.map(choice => ({ name: choice.name, value: choice.name })),
+            );
+        }
+    }
 };

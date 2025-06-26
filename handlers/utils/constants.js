@@ -14,6 +14,7 @@ const COLOR_MAP = {
 
 const COOLDOWN_DAYS = 3;
 const MAX_ROSTER_SIZE = 5;
+const TEAM_MAX_ROSTER_SIZE = 5;
 
 /**
  * Resolve uma string de cor em um formato de cor hexadecimal que o Discord aceita.
@@ -48,5 +49,6 @@ module.exports = {
     COLOR_MAP,
     resolveDisplayColor,
     COOLDOWN_DAYS,
-    MAX_ROSTER_SIZE,  
+    MAX_ROSTER_SIZE,
+    TEAM_MAX_ROSTER_SIZE,  
 };

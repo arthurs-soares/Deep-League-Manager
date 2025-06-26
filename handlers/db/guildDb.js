@@ -14,38 +14,30 @@ const getGuildsCollection = () => {
 
 // --- SUAS FUNÇÕES EXISTENTES ---
 async function saveGuildData(guildData) {
-    try {
-        // AGORA getGuildsCollection() ESTARÁ DEFINIDA
-        const collection = getGuildsCollection();
-        
-        // Certifique-se que guildData tem _id ou id
-        let filter;
-        if (guildData._id) {
-            filter = { _id: guildData._id instanceof ObjectId ? guildData._id : new ObjectId(guildData._id) };
-        } else if (guildData.id) { // Fallback para 'id' se '_id' não existir (ex: objeto novo antes do primeiro save)
-            // Este caso é mais para upsert em uma criação, mas para update, _id já deveria existir.
-            // Se guildData.id é uma string de ObjectId, converta.
-            filter = { _id: new ObjectId(guildData.id) };
-        } else {
-            console.error("[guildDb - saveGuildData] Erro: guildData não possui _id ou id para filtro.", guildData);
-            throw new Error("Dados da guilda inválidos para salvar: _id ou id ausente.");
+    const guildsCollection = getDb().collection('guilds');
+
+    // Se o guildData já tem um _id, significa que estamos atualizando um documento existente.
+    if (guildData._id) {
+        // Separa o _id do resto dos dados para a atualização
+        const { _id, ...dataToUpdate } = guildData;
+        // Usa replaceOne para substituir todo o documento, exceto o _id.
+        // Isso é bom para garantir que o estado do objeto no código e no DB sejam idênticos.
+        return await guildsCollection.replaceOne(
+            { _id: new ObjectId(_id) }, // Filtra pelo ObjectId
+            dataToUpdate,
+            { upsert: false } // Não cria um novo se não encontrar (deve sempre encontrar ao editar)
+        );
+    } 
+    // Se não tem _id, é um novo documento que precisa ser inserido.
+    else {
+        // Usa insertOne, que vai gerar um _id automaticamente no MongoDB.
+        // O objeto original guildData (newGuild em registrar.js) não precisa ter _id.
+        const result = await guildsCollection.insertOne(guildData);
+        // Opcional: Atualiza o objeto original com o _id gerado pelo DB, se necessário para operações subsequentes.
+        if (result.insertedId) {
+            guildData._id = result.insertedId;
         }
-
-        // Remova _id do objeto a ser setado para evitar erro de modificar _id
-        // Crie uma cópia para não modificar o objeto original guildData se ele for usado depois
-        const dataToSet = { ...guildData };
-        delete dataToSet._id; // MongoDB não permite que você defina _id em uma operação $set
-
-        console.log(`[guildDb - saveGuildData] Tentando salvar guilda: ${guildData.name}, Filtro:`, filter);
-        console.log(`[guildDb - saveGuildData] Dados para $set:`, dataToSet);
-
-        const result = await collection.updateOne(filter, { $set: dataToSet }, { upsert: true });
-        console.log('[guildDb - saveGuildData] Resultado do updateOne:', result);
-        // ... (resto da sua lógica de log de resultado) ...
         return result;
-    } catch (error) {
-        console.error(`❌ Erro ao salvar dados da guilda ${guildData.name || 'DESCONHECIDA'}:`, error);
-        throw error;
     }
 }
 
