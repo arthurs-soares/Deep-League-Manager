@@ -53,20 +53,42 @@ async function handleGuildPanelEdit(interaction, guildIdSafe, globalConfig, clie
         return;
     }
 
-    // Verificação CRUCIAL: guild.id deve existir e ser um ObjectId (que tem toString)
-    if (!guild.id || typeof guild.id.toString !== 'function') {
-        console.error(`[CRITICAL editHandlers handleGuildPanelEdit] Guild object for ${guildIdSafe} (Nome: ${guild.name}) is missing 'id' or 'id.toString' is not a function. Guild object:`, JSON.stringify(guild, null, 2));
-        // Tenta responder à interação original se ainda não foi feito.
-        // getAndValidateGuild pode já ter respondido se a falha foi lá.
+    // Verificação CRUCIAL CORRIGIDA: Verifica por guild._id
+    if (!guild._id || typeof guild._id.toString !== 'function') {
+        console.error(`[CRITICAL editHandlers handleGuildPanelEdit] Guild object for ${guildIdSafe} (Nome: ${guild.name}) is missing '_id' or '_id.toString' is not a function. Guild object:`, JSON.stringify(guild, null, 2));
         if (!interaction.replied && !interaction.deferred) {
-            await interaction.reply({ content: "❌ Erro interno ao preparar o painel de edição (ID da guilda ausente ou inválido). Por favor, contate um administrador.", flags: MessageFlags.Ephemeral });
+            await interaction.reply({ content: "❌ Erro interno ao preparar o painel de edição (ID da guilda ausente ou inválido). Por favor, contate um administrador.", ephemeral: true });
         }
         return;
     }
-    const embed = buildGuildEditEmbed(guild, globalConfig);
-    const buttons = buildGuildEditButtons(guild.id.toString());
 
-    await interaction.reply({ embeds: [embed], components: buttons, flags: MessageFlags.Ephemeral });
+    // A função buildGuildEditEmbed pode precisar ser ajustada se ela também usa guild.id
+    // Vamos garantir que ela também use guild._id
+    const embed = buildGuildEditEmbed(guild, globalConfig);
+
+    // Usa guild._id.toString() para o customId dos botões
+    const buttons = buildGuildEditButtons(guild._id.toString());
+
+    await interaction.reply({ embeds: [embed], components: buttons, ephemeral: true });
+}
+
+// --- Ajuste na função buildGuildEditEmbed ---
+// Certifique-se de que o rodapé (footer) desta função também use guild._id
+
+function buildGuildEditEmbed(guild, globalConfig) {
+    return new EmbedBuilder()
+        .setTitle(`Painel de Edição - ${guild.name}`)
+        .setColor(resolveDisplayColor(guild.color, globalConfig))
+        .setDescription("Selecione abaixo o que você deseja editar. As alterações são salvas individualmente.")
+        .addFields(
+            { name: '🏷️ Nome', value: guild.name || 'Não definido', inline: true },
+            { name: '🎨 Cor', value: guild.color || 'Padrão do Bot', inline: true },
+            { name: '🖼️ Logo URL', value: guild.logo || 'Nenhum', inline: true },
+            { name: '🚩 Banner URL', value: guild.banner || 'Nenhum', inline: true },
+            { name: '📝 Descrição', value: guild.description || 'Não definida', inline: false }
+        )
+        .setFooter({ text: `ID da Guilda (DB): ${guild._id}` }) // <-- CORRIGIDO para guild._id
+        .setTimestamp();
 }
 
 // --- Handlers para cliques nos botões de edição (mostram os modais) ---
