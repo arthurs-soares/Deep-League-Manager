@@ -74,6 +74,7 @@ function loadCommands() {
  */
 async function initializeRequiredFiles() {
     console.log(`[DIAGNÓSTICO INDEX] Iniciando initializeRequiredFiles.`);
+
     const defaultConfig = {
         moderatorRoles: [],
         scoreOperatorRoles: [],
@@ -87,24 +88,44 @@ async function initializeRequiredFiles() {
         warTicketPanelMessageId: "",
         rankingChannelId: "",
         rankingMessageId: "",
+        dodgeLogChannelId: "",
         guildRosterForumChannelId: "",
+        guildViewChannel: "",
+        leaderboard: {
+            channelId: "",
+            messageId: "",
+        },
     };
 
-    const loadedConfig = await allHandlers.loadConfig();
+    const loadedConfig = await allHandlers.loadConfig() || {}; 
 
     globalConfig = {
         ...defaultConfig,
         ...loadedConfig,
         moderatorRoles: loadedConfig.moderatorRoles || defaultConfig.moderatorRoles,
         scoreOperatorRoles: loadedConfig.scoreOperatorRoles || defaultConfig.scoreOperatorRoles,
-        recentlyLeftUsers: loadedConfig.recentlyLeftUsers || defaultConfig.recentlyLeftUsers
+        recentlyLeftUsers: loadedConfig.recentlyLeftUsers || defaultConfig.recentlyLeftUsers,
+        leaderboard: { ...defaultConfig.leaderboard, ...(loadedConfig.leaderboard || {}) } // Mescla o objeto aninhado
     };
 
-    if (JSON.stringify(Object.keys(globalConfig).sort()) !== JSON.stringify(Object.keys(defaultConfig).sort())) {
-        console.log(`[DIAGNÓSTICO INDEX] Configuração com chaves incompletas. Salvando para completar.`);
-        await allHandlers.saveConfig(globalConfig);
+    let needsSave = false;
+    for (const key in defaultConfig) {
+        if (!(key in globalConfig)) {
+            console.log(`[DIAGNÓSTICO INDEX] Chave de configuração padrão ausente: "${key}". Será adicionada.`);
+            needsSave = true;
+        }
     }
 
+    if (needsSave) {
+        console.log(`[DIAGNÓSTICO INDEX] Configuração com chaves padrão ausentes. Salvando para completar.`);
+        // Remove _id antes de salvar para evitar conflitos se a função saveConfig não o fizer.
+        delete globalConfig._id; 
+        await allHandlers.saveConfig(globalConfig);
+    } else {
+        console.log('[DIAGNÓSTICO INDEX] Configuração carregada e completa. Nenhum salvamento automático necessário.');
+    }
+
+    // Apenas para debug, para ver o que foi carregado
     console.log(`[DIAGNÓSTICO INDEX] globalConfig finalizada: guildRosterForumChannelId = ${globalConfig.guildRosterForumChannelId}`);
 }
 

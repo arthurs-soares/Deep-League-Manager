@@ -6,6 +6,7 @@
 const { loadConfig, saveConfig } = require('./db/configDb');
 const { loadGuildByName, loadAllGuilds, saveGuildData, deleteGuildByName, findGuildByLeader, isUserInAnyGuild } = require('./db/guildDb');
 const { saveWarTicket, loadWarTicketByThreadId, deleteWarTicket } = require('./db/warDb');
+const { getDb } = require('../../utils/database');                      
 
 // Importa as funções de roteamento intermediárias do interactionHandler
 const { handleGuildEditButton, handleGuildPanelButton, handleGuildEditModalSubmit, handleGuildPanelModalSubmit } = require('./panel/interactionHandler');

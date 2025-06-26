@@ -1,42 +1,27 @@
 // handlers/db/guildDb.js
-const { getDb } = require('../../utils/database'); // Ajuste o caminho se necessário
-const { ObjectId } = require('mongodb'); // Necessário se você manipular _id como ObjectId
+const { getDb } = require('../../utils/database'); // ✅ Mantenha apenas esta importação do database
+const { ObjectId } = require('mongodb');
 
-// --- FUNÇÃO AUXILIAR PARA OBTER A COLEÇÃO ---
+// A função getGuildsCollection que você criou é ÓTIMA. Vamos usá-la em tudo.
 const getGuildsCollection = () => {
-    const db = getDb(); // Obtém a instância do banco de dados
+    const db = getDb();
     if (!db) {
-        // Isso não deveria acontecer se connectToDatabase foi chamado corretamente na inicialização
-        throw new Error("A conexão com o banco de dados não foi estabelecida em getGuildsCollection.");
+        throw new Error("A conexão com o banco de dados não foi estabelecida.");
     }
-    return db.collection('guilds'); // 'guilds' é o nome da sua coleção
+    return db.collection('guilds');
 };
 
-// --- SUAS FUNÇÕES EXISTENTES ---
 async function saveGuildData(guildData) {
-    const guildsCollection = getDb().collection('guilds');
+    // ✅ Perfeito, já usa getDb() implicitamente via getGuildsCollection se você ajustar.
+    const guildsCollection = getDb().collection('guilds'); 
 
-    // Se o guildData já tem um _id, significa que estamos atualizando um documento existente.
+    // O resto da sua função saveGuildData está muito bom com a lógica if/else para update/insert.
     if (guildData._id) {
-        // Separa o _id do resto dos dados para a atualização
         const { _id, ...dataToUpdate } = guildData;
-        // Usa replaceOne para substituir todo o documento, exceto o _id.
-        // Isso é bom para garantir que o estado do objeto no código e no DB sejam idênticos.
-        return await guildsCollection.replaceOne(
-            { _id: new ObjectId(_id) }, // Filtra pelo ObjectId
-            dataToUpdate,
-            { upsert: false } // Não cria um novo se não encontrar (deve sempre encontrar ao editar)
-        );
-    } 
-    // Se não tem _id, é um novo documento que precisa ser inserido.
-    else {
-        // Usa insertOne, que vai gerar um _id automaticamente no MongoDB.
-        // O objeto original guildData (newGuild em registrar.js) não precisa ter _id.
+        return await guildsCollection.replaceOne({ _id: new ObjectId(_id) }, dataToUpdate);
+    } else {
         const result = await guildsCollection.insertOne(guildData);
-        // Opcional: Atualiza o objeto original com o _id gerado pelo DB, se necessário para operações subsequentes.
-        if (result.insertedId) {
-            guildData._id = result.insertedId;
-        }
+        if (result.insertedId) guildData._id = result.insertedId;
         return result;
     }
 }
@@ -96,14 +81,9 @@ async function isUserInAnyGuild(userId) {
 
 // Exemplo para deleteGuildByName
 async function deleteGuildByName(name) {
-    try {
-        const collection = getGuildsCollection();
-        const result = await collection.deleteOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } });
-        return result.deletedCount > 0;
-    } catch (error) {
-        console.error(`❌ Erro ao deletar guilda por nome ${name}:`, error);
-        throw error;
-    }
+    const collection = getGuildsCollection(); // Usando a função helper
+    const result = await collection.deleteOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } });
+    return result.deletedCount > 0;
 }
 
 // Exemplo para findGuildByLeader
@@ -131,5 +111,4 @@ module.exports = {
     isUserInAnyGuild,
     deleteGuildByName,
     findGuildByLeader,
-    // getGuildsCollection, // Geralmente não se exporta a função getCollection diretamente
 };

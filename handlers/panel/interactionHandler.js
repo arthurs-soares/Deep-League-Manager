@@ -2,7 +2,8 @@
 // Módulo central para o tratamento e roteamento de todas as interações do Discord.
 const { InteractionType, MessageFlags } = require('discord.js');
 const { handleError } = require('../../utils/errorHandler'); // Importa o handler de erros (caminho relativo à raiz)
-const { getAndValidateGuild } = require('../utils/validation');                         
+const { getAndValidateGuild } = require('../utils/validation');    
+const { getDb } = require('../../utils/database');                      
 
 /**
  * Capitaliza a primeira letra de uma string.
@@ -228,11 +229,14 @@ async function handleInteraction(interaction, client, globalConfig) {
         }
         // --- Botões ---
         else if (interaction.isButton()) {
+            const customId = interaction.customId;
             console.log(`[DEBUG InteractionHandler] Roteando botão: ${customId}`);
 
             if (customId.startsWith('guildedit_button_')) {
                 await client.guildPanelHandlers.handleGuildEditButton(interaction, client, globalConfig, customId);
-            } else if (customId.startsWith('profile_leave_guild_')) {
+            }
+            // Botões de Sair da Guilda
+            else if (customId.startsWith('profile_leave_guild_')) {
                 const guildMongoId = customId.replace('profile_leave_guild_', '');
                 await client.guildPanelHandlers.handleProfileLeaveGuild(interaction, guildMongoId, globalConfig, client);
             } else if (customId.startsWith('confirm_leave_guild_')) {
@@ -240,6 +244,10 @@ async function handleInteraction(interaction, client, globalConfig) {
                 await client.guildPanelHandlers.handleConfirmLeaveGuild(interaction, guildMongoId, globalConfig, client);
             } else if (customId === 'cancel_leave_guild') {
                  await interaction.update({ content: 'ℹ️ Ação de sair da guilda foi cancelada.', components: [], embeds: [] });
+            }
+            // NOVO: Botão de Cancelar Deleção de Time
+            else if (customId === 'cancel_delete_team') {
+                await interaction.update({ content: 'ℹ️ A exclusão do time foi cancelada.', embeds: [], components: [] });
             }
             // War Ticket Buttons
             else if (customId === 'pull_war_ticket') {
@@ -256,7 +264,7 @@ async function handleInteraction(interaction, client, globalConfig) {
                 const guildIdSafe = customId.replace('guildpanel_manage_rosters_dropdown_', '');
                 await client.guildPanelHandlers.handleGuildPanelManageRosters_Initial(interaction, guildIdSafe, globalConfig, client);
             }
-            // NOVO: Roteamento para botões do painel de time (mais específicos primeiro)
+            // Roteamento para botões do painel de time
             else if (customId.startsWith('teampanel_editprofile_')) {
                 const teamIdSafe = customId.replace('teampanel_editprofile_', '');
                 await client.guildPanelHandlers.handleTeamPanelEditProfile(interaction, teamIdSafe, globalConfig, client);
@@ -264,24 +272,36 @@ async function handleInteraction(interaction, client, globalConfig) {
                 const teamIdSafe = customId.replace('teampanel_manageroster_', '');
                 await client.guildPanelHandlers.handleTeamPanelManageRoster(interaction, teamIdSafe, globalConfig, client);
             }
-            // Roteamento genérico para outros botões 'guildpanel_' (deve vir depois dos mais específicos de guilda e time)
+            // Roteamento genérico para outros botões 'guildpanel_'
             else if (customId.startsWith('guildpanel_')) {
                 await client.guildPanelHandlers.handleGuildPanelButton(interaction, client, globalConfig, customId);
             }
-            // Fallback para botões não tratados
+            // Fallback para botões não tratados, incluindo os que são tratados por coletores
             else {
-                // Verifica se são botões de paginação do /visualizar (ranking_guilds_prev/next)
-                // ou ranking_prev/next (se você simplificou o ID ou tem outra paginação)
-                if (customId !== 'ranking_guilds_prev' && customId !== 'ranking_guilds_next' &&
-                    customId !== 'ranking_teams_prev' && customId !== 'ranking_teams_next' && // Adicionar estes
-                    customId !== 'ranking_prev' && customId !== 'ranking_next') {
-                    console.warn(`[InteractionHandler GLOBAL] CustomId de botão não tratado globalmente e não esperado por coletores: ${customId}`);
+                // Lista de IDs que são tratados por coletores de comando e devem ser ignorados aqui
+                const collectorHandledIds = [
+                    'ranking_guilds_prev', 'ranking_guilds_next',
+                    'ranking_teams_prev', 'ranking_teams_next',
+                    'ranking_prev', 'ranking_next'
+                ];
+                
+                // O botão de confirmação de deleção também é tratado por um coletor
+                if (customId.startsWith('confirm_delete_team_')) {
+                    console.log(`[InteractionHandler GLOBAL] Botão ${customId} detectado. O coletor do comando /deletar-time deve tratar.`);
+                }
+                // Verifica se o ID é de um coletor conhecido
+                else if (collectorHandledIds.includes(customId)) {
+                    console.log(`[InteractionHandler GLOBAL] Botão de paginação ${customId} detectado. O coletor do comando /visualizar deve tratar.`);
+                }
+                // Se não for nenhum dos IDs conhecidos ou de coletor, loga como não tratado
+                else {
+                    console.warn(`[InteractionHandler GLOBAL] CustomId de botão não tratado globalmente: ${customId}`);
+                    // É mais seguro não responder aqui para evitar conflitos com outros possíveis coletores
                     if (!interaction.replied && !interaction.deferred) {
+                        // Considere remover esta resposta se causar problemas
+                        // await interaction.reply({ content: `❌ Ação de botão não reconhecida: ${customId}`, ephemeral: true });
                     }
-            } else {
-                    console.log(`[InteractionHandler GLOBAL] Botão de paginação ${customId} detectado, esperando que o coletor do comando /visualizar o trate.`);
-            }
-
+                }
             }
         } // Fim do else if (interaction.isButton())
 

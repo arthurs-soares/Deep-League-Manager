@@ -1,25 +1,25 @@
 // handlers/db/teamDb.js
 // Módulo para interagir com a coleção 'teams' no banco de dados.
+
 const { ObjectId } = require('mongodb');
-const { getDatabaseInstance } = require('../../utils/database');
+// ✅ CORREÇÃO: Importação padronizada e com caminho correto
+const { getDb } = require('../../utils/database');
 
 const teamCache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos de cache
 
-// Estrutura de dados de um Time
+// Função para normalizar dados (sem alterações)
 function normalizeTeamData(team) {
-    if (!team) return team;
-    if (team._id && (!team.id || team.id.toString() !== team._id.toString())) {
-        team.id = team._id;
+    if (!team) return null;
+    if (team._id) {
+        team.id = team._id.toString(); // Garante que id seja uma string
     }
-    team.score = team.score || {};
-    team.score.wins = typeof team.score.wins === 'number' ? team.score.wins : 0;
-    team.score.losses = typeof team.score.losses === 'number' ? team.score.losses : 0;
+    team.score = team.score || { wins: 0, losses: 0 };
     team.roster = team.roster || [];
-    team.leader = team.leader || null;
-    if (team.leader && !team.leader.id) team.leader = null;
     return team;
 }
+
+// --- Funções de Leitura ---
 
 async function loadTeamByName(teamName) {
     const cacheKey = teamName.toLowerCase();
@@ -29,9 +29,10 @@ async function loadTeamByName(teamName) {
             return JSON.parse(JSON.stringify(cachedEntry.data));
         }
     }
-    const db = getDatabaseInstance();
+    // ✅ CORREÇÃO: Usa getDb() de forma consistente
+    const teamsCollection = getDb().collection('teams');
     try {
-        let team = await db.collection('teams').findOne({ name: { $regex: new RegExp(`^${teamName}$`, 'i') } });
+        let team = await teamsCollection.findOne({ name: { $regex: new RegExp(`^${teamName}$`, 'i') } });
         if (team) {
             team = normalizeTeamData(team);
             teamCache.set(cacheKey, { data: team, timestamp: Date.now() });
@@ -44,11 +45,11 @@ async function loadTeamByName(teamName) {
 }
 
 async function findTeamByLeader(userId) {
-    const db = getDatabaseInstance();
+    // ✅ CORREÇÃO: Usa getDb() de forma consistente
+    const teamsCollection = getDb().collection('teams');
     try {
-        const team = await db.collection('teams').findOne({ 'leader.id': userId });
-        if (team) return normalizeTeamData(team);
-        return null;
+        const team = await teamsCollection.findOne({ 'leader.id': userId });
+        return normalizeTeamData(team);
     } catch (error) {
         console.error(`❌ Erro ao buscar time por líder (ID: ${userId}):`, error);
         throw error;
@@ -63,9 +64,10 @@ async function loadAllTeams() {
             return JSON.parse(JSON.stringify(cachedEntry.data));
         }
     }
-    const db = getDatabaseInstance();
+    // ✅ CORREÇÃO: Usa getDb() de forma consistente
+    const teamsCollection = getDb().collection('teams');
     try {
-        let teams = await db.collection('teams').find({}).toArray();
+        let teams = await teamsCollection.find({}).toArray();
         if (teams && teams.length > 0) {
             teams = teams.map(normalizeTeamData);
             teamCache.set(cacheKey, { data: teams, timestamp: Date.now() });
@@ -77,30 +79,51 @@ async function loadAllTeams() {
     }
 }
 
+async function isUserInAnyTeam(userId) {
+    // ✅ CORREÇÃO: Usa getDb() de forma consistente
+    const teamsCollection = getDb().collection('teams');
+    try {
+        const team = await teamsCollection.findOne({
+            $or: [
+                { 'leader.id': userId },
+                { 'roster.id': userId }
+            ]
+        });
+        return normalizeTeamData(team);
+    } catch (error) {
+        console.error(`❌ Erro ao verificar se o usuário ${userId} está em algum time:`, error);
+        throw error;
+    }
+}
+
+// --- Funções de Escrita ---
+
 async function saveTeamData(teamData) {
-    const db = getDatabaseInstance();
-    const documentId = teamData.id || teamData._id;
-    const updatePayload = { ...teamData };
-    delete updatePayload._id;
-    delete updatePayload.id;
+    const teamsCollection = getDb().collection('teams');
+    const documentId = teamData._id || teamData.id; // Aceita _id ou id
+
+    // Remove as propriedades de ID do payload de atualização para evitar erros
+    const { _id, id, ...updatePayload } = teamData;
+    
     try {
         let result;
         if (documentId) {
-            result = await db.collection('teams').updateOne(
-                { _id: documentId },
-                { $set: updatePayload },
+            // Se tem ID, atualiza o documento existente
+            result = await teamsCollection.replaceOne(
+                { _id: new ObjectId(documentId) },
+                updatePayload,
                 { upsert: false }
             );
         } else {
-            result = await db.collection('teams').updateOne(
-                { name: teamData.name },
-                { $set: updatePayload },
-                { upsert: true }
-            );
+            // Se não tem ID, é um novo time, então insere
+            result = await teamsCollection.insertOne(teamData);
+            if (result.insertedId) {
+                teamData._id = result.insertedId; // Adiciona o _id gerado ao objeto original
+            }
         }
-        if (result.upsertedCount > 0 || result.modifiedCount > 0) {
-            teamCache.clear();
-        }
+        
+        // Limpa o cache após qualquer modificação
+        teamCache.clear();
         return teamData;
     } catch (error) {
         console.error("❌ Erro ao salvar/atualizar time no DB:", error);
@@ -108,34 +131,16 @@ async function saveTeamData(teamData) {
     }
 }
 
-async function deleteTeamByName(teamName) {
-    const db = getDatabaseInstance();
+async function deleteTeamByName(name) {
+    const teamsCollection = getDb().collection('teams');
     try {
-        const result = await db.collection('teams').deleteOne({ name: { $regex: new RegExp(`^${teamName}$`, 'i') } });
+        const result = await teamsCollection.deleteOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } });
         if (result.deletedCount > 0) {
-            teamCache.clear();
-            return true;
+            teamCache.clear(); // Limpa o cache após a deleção
         }
-        return false;
+        return result.deletedCount > 0;
     } catch (error) {
-        console.error(`❌ Erro ao deletar time "${teamName}" por nome no DB:`, error);
-        throw error;
-    }
-}
-
-async function isUserInAnyTeam(userId) {
-    const db = getDatabaseInstance();
-    try {
-        const team = await db.collection('teams').findOne({
-            $or: [
-                { 'leader.id': userId },
-                { 'roster.id': userId }
-            ]
-        });
-        if (team) return normalizeTeamData(team);
-        return null;
-    } catch (error) {
-        console.error(`❌ Erro ao verificar se o usuário ${userId} está em algum time:`, error);
+        console.error(`❌ Erro ao deletar time "${name}":`, error);
         throw error;
     }
 }
