@@ -9,7 +9,7 @@ const fs = require('fs');   // Módulo para interagir com o sistema de arquivos.
 const path = require('path'); // Módulo para lidar com caminhos de arquivos.
 
 // Importações dos módulos utilitários e de tarefas, com caminhos relativos à raiz.
-const { connectToDatabase } = require('./utils/database'); // Conexão com o DB.
+const { getDb, connectToDatabase } = require('./utils/database'); // <<< CORRETO
 const { handleError } = require('./utils/errorHandler');   // Gerenciamento de erros.
 const { updateStatus } = require('./utils/statusManager'); // Gerenciamento de status do bot.
 const { updateLeaderboardPanel } = require('./tasks/leaderboardUpdater'); // Atualizador de ranking.
@@ -193,9 +193,11 @@ async function startBot() {
         if (!DATABASE_URI_FOR_CONNECTION || !DB_NAME) {
             console.error("ERRO CRÍTICO: DATABASE_URI ou DB_NAME não definidos no arquivo .env!");
             process.exit(1);
-        }
+        } 
+        // Esta chamada agora vai funcionar
         await connectToDatabase(DATABASE_URI_FOR_CONNECTION, DB_NAME);
         console.log("✅ Conexão com o banco de dados estabelecida.");
+
 
         // Agora que o DB está conectado, podemos inicializar as configurações.
         await initializeRequiredFiles();
