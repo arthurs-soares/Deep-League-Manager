@@ -9,7 +9,7 @@ const { saveWarTicket, loadWarTicketByThreadId, deleteWarTicket } = require('./d
 const { getDb } = require('../utils/database'); // <<< CORRETO                     
 
 // Importa as funções de roteamento intermediárias do interactionHandler
-const { handleGuildEditButton, handleGuildPanelButton, handleGuildEditModalSubmit, handleGuildPanelModalSubmit } = require('./panel/common/interactionHandler');
+const { handleGuildEditButton, handleGuildPanelButton, handleGuildEditModalSubmit, handleGuildPanelModalSubmit } = require('./panel/interactionHandler');
 
 // Importações dos módulos do painel (handlers/panel)
 const {
@@ -24,8 +24,8 @@ const {
     handleGuildEditLogoSubmit,
     handleGuildEditColorSubmit,
     handleGuildEditBannerSubmit
-} = require('./panel/common/editHandlers');
-const { handleGuildPanelSetcoleader, handleGuildPanelSetcoleaderSubmit, handleGuildPanelTransferleader, handleGuildPanelTransferleaderSubmit } = require('./panel/common/leadershipHandlers');
+} = require('./panel/editHandlers');
+const { handleGuildPanelSetcoleader, handleGuildPanelSetcoleaderSubmit, handleGuildPanelTransferleader, handleGuildPanelTransferleaderSubmit } = require('./panel/leadershipHandlers');
 
 // // REMOVA ESTE BLOCO INTEIRO:
 // const {
@@ -44,7 +44,7 @@ const {
     handleWarRequestDodgeButton,
     handleWarDodgeSelectGuildSubmit,
     handleWarRoundButton,
-} = require('./war/warTicketHandlers');
+} = require('./panel/warTicketHandlers');
 
 // Importações dos módulos utilitários (handlers/utils)
 const { COLOR_MAP, resolveDisplayColor, COOLDOWN_DAYS, MAX_ROSTER_SIZE } = require('./utils/constants'); // Adicionado COOLDOWN_DAYS, MAX_ROSTER_SIZE se você os moveu para cá
@@ -58,7 +58,7 @@ const { autocompleteGuilds } = require('./utils/autocompleteHelper'); // Adicion
 const { manageGuildForumPost } = require('../utils/guildForumPostManager');
 
 // Importa o novo handler de interação (agora em handlers/interactionHandler.js)
-const { handleInteraction } = require('./panel/common/interactionHandler');
+const { handleInteraction } = require('./panel/interactionHandler');
 
 // Importa o handler de eventos de boost
 const boostHandler = require('./events/boostHandler');
@@ -70,14 +70,14 @@ const { loadUserProfile, saveUserProfile } = require('./db/userProfileDb');
 const { loadTeamByName, loadAllTeams, saveTeamData, deleteTeamByName, isUserInAnyTeam } = require('./db/teamDb');
 
 // NOVAS IMPORTAÇÕES DOS MÓDULOS DE ROSTER REATORADOS
-const rosterUtils = require('./panel/roster/rosterUtils');
-const rosterIndividualActions = require('./panel/roster/rosterIndividualActions');
-const rosterBulkActions = require('./panel/roster/rosterBulkActions');
-const rosterSlotEditActions = require('./panel/roster/rosterSlotEditActions');
-const rosterDropdownFlow = require('./panel/roster/rosterDropdownFlow');
-const rosterDirectManageActions = require('./panel/roster/rosterDirectManageActions');
-const rosterLeaveActions = require('./panel/roster/rosterLeaveActions');
-const teamPanelHandlers = require('./panel/team/teamPanelHandlers');
+const rosterUtils = require('./panel/rosterUtils');
+const rosterIndividualActions = require('./panel/rosterIndividualActions');
+const rosterBulkActions = require('./panel/rosterBulkActions');
+const rosterSlotEditActions = require('./panel/rosterSlotEditActions');
+const rosterDropdownFlow = require('./panel/rosterDropdownFlow');
+const rosterDirectManageActions = require('./panel/rosterDirectManageActions');
+const rosterLeaveActions = require('./panel/rosterLeaveActions');
+const teamPanelHandlers = require('./panel/teamPanelHandlers'); 
 
 module.exports = {
     // Funções de Banco de Dados

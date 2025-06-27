@@ -3,7 +3,7 @@ const { EmbedBuilder } = require('discord.js');
 const { loadWarTicketByThreadId, saveWarTicket, deleteWarTicket } = require('../../db/warDb');
 const { sendLogMessage } = require('../../utils/logManager');
 const { MAX_ROUNDS, ROUNDS_TO_WIN } = require('../../utils/constants');
-const { createWarCurrentButtons } = require('../warTicketButtons');
+const { createWarCurrentButtons } = require('../actions/warTicketButtons');
 const { saveEntityScore, processWarResultForPersonalScores, restrictThreadAccessOnCompletion } = require('./warLogic');
 
 async function handleWarRoundButton(interaction, client, globalConfig) {

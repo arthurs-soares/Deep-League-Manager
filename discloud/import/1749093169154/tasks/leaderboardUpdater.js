@@ -79,8 +79,7 @@ async function updateLeaderboardPanel(client, globalConfig) {
             const winRate = totalGames > 0 ? Math.round((wins / (totalGames)) * 100) : 0;
             const scoreInfo = totalGames > 0 ? `**${wins}V** / **${losses}D** (${winRate}%)` : '*Sem partidas*';
             
-            const leaderInfo = guild.leader ? `<@${guild.leader.id}>` : '*Líder não definido*';
-            return `${rankEmoji} **${guild.name}**\n   └ 👑 ${leaderInfo} • 📊 ${scoreInfo}`;
+            return `${rankEmoji} **${guild.name}**\n   └ 👑 <@${guild.leader.id}> • 📊 ${scoreInfo}`;
         }).join('\n\n');
 
         // Cria o Embed final do ranking.

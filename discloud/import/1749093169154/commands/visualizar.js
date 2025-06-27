@@ -150,8 +150,7 @@ module.exports = {
                 const totalGames = wins + losses;
                 const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
                 const scoreInfo = totalGames > 0 ? `**${wins}V** / **${losses}D** (${winRate}%)` : '*Sem partidas*';
-                const leaderInfo = item.leader ? `<@${item.leader.id}>` : '*Líder não definido*';
-                return `${rankEmoji} **${item.name}** (${entityLabel})\n   └ 👑 ${leaderInfo} • 📊 ${scoreInfo}`;
+                return `${rankEmoji} **${item.name}** (${entityLabel})\n   └ 👑 <@${item.leader.id}> • 📊 ${scoreInfo}`;
             }).join('\n\n') || `*Nenhum(a) ${entityLabel.toLowerCase()}(s) nesta página.*`;
 
             return new EmbedBuilder()
@@ -188,27 +187,15 @@ module.exports = {
         const collector = message.createMessageComponentCollector({ filter, componentType: ComponentType.Button, time: 180000 }); // 3 minutos
 
         collector.on('collect', async i => {
-            try {
-                await i.deferUpdate();
-                if (i.customId === `${buttonPrefix}_prev`) currentPage--;
-                else if (i.customId === `${buttonPrefix}_next`) currentPage++;
+            await i.deferUpdate();
+            if (i.customId === `${buttonPrefix}_prev`) currentPage--;
+            else if (i.customId === `${buttonPrefix}_next`) currentPage++;
 
-                await message.edit({ embeds: [generateEmbed(currentPage)], components: [generateButtons(currentPage)] });
-            } catch (error) {
-                console.error(`Error during pagination collection for ${i.customId}:`, error);
-                await i.followUp({ content: '❌ Ocorreu um erro ao processar sua solicitação de página.', ephemeral: true }).catch(console.error);
-            }
+            await i.editReply({ embeds: [generateEmbed(currentPage)], components: [generateButtons(currentPage)] });
         });
 
-        collector.on('end', async (collected, reason) => {
-            try {
-                // Only edit if the message still exists and the reason is not 'messageDelete' or 'channelDelete'
-                if (message && message.editable && reason !== 'messageDelete' && reason !== 'channelDelete') {
-                    await message.edit({ embeds: [generateEmbed(currentPage)], components: [] });
-                }
-            } catch (error) {
-                console.error('Error ending pagination collector:', error);
-            }
+        collector.on('end', async () => {
+            await message.edit({ embeds: [generateEmbed(currentPage)], components: [] }).catch(console.error);
         });
     },
 

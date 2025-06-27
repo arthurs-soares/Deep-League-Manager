@@ -4,7 +4,7 @@ const { loadGuildByName } = require('../../db/guildDb');
 const { loadTeamByName } = require('../../db/teamDb');
 const { saveWarTicket, loadWarTicketByThreadId } = require('../../db/warDb');
 const { sendLogMessage } = require('../../utils/logManager');
-const { createWarCurrentButtons } = require('../warTicketButtons');
+const { createWarCurrentButtons } = require('../actions/warTicketButtons');
 
 async function handleWarAcceptButton(interaction, client, globalConfig) {
     await interaction.deferUpdate();
