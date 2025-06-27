@@ -1,9 +1,11 @@
 // interactionHandler.js
 // Módulo central para o tratamento e roteamento de todas as interações do Discord.
-const { InteractionType, MessageFlags } = require('discord.js');
+const { InteractionType, MessageFlags, PermissionFlagsBits } = require('discord.js'); // Added PermissionFlagsBits
 const { handleError } = require('../../../utils/errorHandler'); // Importa o handler de erros (caminho relativo à raiz)
 const { getAndValidateGuild } = require('../../utils/validation');    
 const { getDb } = require('../../../utils/database');                      
+const { openGuildPanel } = require('../../../commands/guilda-painel'); // Import openGuildPanel
+const { loadGuildByName } = require('../../../handlers/db/guildDb'); // Import loadGuildByName
 
 /**
  * Capitaliza a primeira letra de uma string.
@@ -273,6 +275,42 @@ async function handleInteraction(interaction, client, globalConfig) {
                 await client.guildPanelHandlers.handleTeamPanelManageRoster(interaction, teamIdSafe, globalConfig, client);
             }
             // Roteamento genérico para outros botões 'guildpanel_'
+            else if (customId.startsWith('profile_guild_panel_')) {
+                const guildName = customId.replace('profile_guild_panel_', '');
+                // Since this is a button interaction, we need to defer the reply first
+                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+                
+                let targetGuild = await loadGuildByName(guildName); // Assume loadGuildByName is available or import it
+
+                if (!targetGuild) {
+                    return interaction.editReply({ content: `❌ Guilda "${guildName}" não encontrada no banco de dados.` });
+                }
+
+                // Determine if the user is a moderator
+                const isModerator = interaction.member.permissions.has(PermissionFlagsBits.Administrator) ||
+                                    (globalConfig.moderatorRoles && globalConfig.moderatorRoles.some(roleId => interaction.member.roles.cache.has(roleId)));
+
+                // Call the exported openGuildPanel function directly
+                await openGuildPanel(interaction, targetGuild, isModerator, globalConfig, client);
+
+            } else if (customId.startsWith('profile_team_panel_')) {
+                const teamName = customId.replace('profile_team_panel_', '');
+                const timePainelCommand = client.commands.get('time-painel');
+                if (timePainelCommand) {
+                    const simulatedInteraction = {
+                        ...interaction,
+                        options: {
+                            getString: (name) => {
+                                if (name === 'time') return teamName;
+                                return null;
+                            }
+                        }
+                    };
+                    await timePainelCommand.execute(simulatedInteraction, client, globalConfig);
+                } else {
+                    await interaction.reply({ content: '❌ Erro interno: Comando "time-painel" não encontrado.', ephemeral: true });
+                }
+            }
             else if (customId.startsWith('guildpanel_')) {
                 await client.guildPanelHandlers.handleGuildPanelButton(interaction, client, globalConfig, customId);
             }

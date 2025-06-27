@@ -2,6 +2,7 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { isUserInAnyGuild } = require('../handlers/db/guildDb');
 const { loadUserProfile } = require('../handlers/db/userProfileDb');
+const { isUserInAnyTeam, findTeamByLeader } = require('../handlers/db/teamDb'); // New import
 const { resolveDisplayColor } = require('../handlers/utils/constants');
 const humanizeDuration = require('humanize-duration');
 
@@ -29,6 +30,7 @@ module.exports = {
         
         const userGuild = await isUserInAnyGuild(targetUser.id);
         const userProfile = await loadUserProfile(targetUser.id);
+        const userTeam = await isUserInAnyTeam(targetUser.id); // New line
 
         const profileEmbed = new EmbedBuilder()
             .setAuthor({ name: `Perfil de ${targetMember.displayName}`, iconURL: targetMember.displayAvatarURL() })
@@ -89,10 +91,24 @@ module.exports = {
                 components.push(row);
             }
             
-        } else {
-            // Lógica para quando não está em guilda (sem alterações)
-            description += `\n\nAtualmente não faz parte de nenhuma guilda.`;
-            profileEmbed.setColor('#3498DB');
+        } 
+        
+        if (userTeam) {
+            let teamRole = 'Membro';
+            if (userTeam.leader?.id === targetUser.id) teamRole = '👑 Líder';
+
+            profileEmbed.addFields(
+                { name: '⚽ Time Atual', value: `Faz parte do time **${userTeam.name}**`, inline: false },
+                { name: 'Cargo no Time', value: teamRole, inline: true },
+                { name: 'Score do Time', value: `${userTeam.score.wins || 0}V / ${userTeam.score.losses || 0}D`, inline: true }
+            );
+        } 
+        
+        const isInAnyOrg = userGuild || userTeam; // Check if user is in any organization
+
+        if (!isInAnyOrg) { // Only apply this if user is NOT in any guild or team
+            description += `\n\nAtualmente não faz parte de nenhuma guilda ou time.`;
+            profileEmbed.setColor('#3498DB'); // Default color for non-members
             const COOLDOWN_DAYS = 3;
             const recentlyLeftUser = globalConfig.recentlyLeftUsers.find(u => u.userId === targetUser.id);
             if (recentlyLeftUser) {
@@ -110,6 +126,38 @@ module.exports = {
             } else {
                 profileEmbed.addFields({ name: 'Status', value: '✅ **Disponível**', inline: true });
             }
+        }
+
+        // Adiciona botão para Painel da Guilda se for líder/vice-líder
+        if (isSelfProfile && (userGuild && (userGuild.leader?.id === targetUser.id || userGuild.coLeader?.id === targetUser.id))) {
+            const guildPanelButton = new ButtonBuilder()
+                .setCustomId(`profile_guild_panel_${userGuild.name.toLowerCase().replace(/\s+/g, '-')}`)
+                .setLabel('Painel da Guilda')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('🎛️');
+            
+            let guildRow = components.find(row => row.components.length < 5); 
+            if (!guildRow) {
+                guildRow = new ActionRowBuilder();
+                components.push(guildRow);
+            }
+            guildRow.addComponents(guildPanelButton);
+        }
+
+        // Adiciona botão para Painel do Time se for líder do time
+        if (isSelfProfile && (userTeam && userTeam.leader?.id === targetUser.id)) {
+            const teamPanelButton = new ButtonBuilder()
+                .setCustomId(`profile_team_panel_${userTeam.name.toLowerCase().replace(/\s+/g, '-')}`)
+                .setLabel('Painel do Time')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('⚽');
+            
+            let teamRow = components.find(row => row.components.length < 5); 
+            if (!teamRow) {
+                teamRow = new ActionRowBuilder();
+                components.push(teamRow);
+            }
+            teamRow.addComponents(teamPanelButton);
         }
         
         profileEmbed.setDescription(description);

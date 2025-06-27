@@ -51,7 +51,7 @@ async function sendLogMessage(client, globalConfig, interaction, actionType, des
         const logEmbed = new EmbedBuilder()
             .setTitle(`🗒️ Ação de ${userRoleContext}`) // Título dinâmico baseado no cargo do usuário.
             .setColor(globalConfig.embedColor || '#0099ff') // Usa a cor de embed global.
-            .setDescription(description)
+            .setDescription(description ?? '') // Ensure description is always a string
             .addFields(
                 { name: 'Usuário', value: `${interaction.user?.tag || interaction.user?.username} (${interaction.user?.id})`, inline: true },
                 { name: 'Ação', value: actionType, inline: true },

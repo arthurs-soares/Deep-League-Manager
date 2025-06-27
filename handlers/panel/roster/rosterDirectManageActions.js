@@ -63,7 +63,7 @@ async function handleGuildPanelManagePlayer_SelectUser(interaction, client, glob
 
         let replyMessage = '';
         let finalComponents = [];
-        let playerObj = { id: member.id, username: member.user.username, joinedAt: new Date().toISOString() };
+        let playerObj = { id: member.id, username: member.user.username || 'Unknown User', joinedAt: new Date().toISOString() };
 
         switch (actionType) {
             case 'add':
@@ -180,7 +180,23 @@ async function handleGuildPanelManagePlayer_SelectUser(interaction, client, glob
 
         // Resposta final para 'add' e 'remove' (que usaram deferReply/update + editReply)
         if ((actionType === 'add' || actionType === 'remove') && replyMessage) {
-             await sendLogMessage(client, globalConfig, interaction, /* ... */ );
+            let logActionType;
+            let logFields = [];
+            if (actionType === 'add') {
+                logActionType = 'Adição de Membro';
+                logFields = [
+                    { name: 'Guilda', value: guild.name, inline: true },
+                    { name: 'Membro', value: `<@${member.id}> (${member.user.tag})`, inline: true },
+                    { name: 'Roster Destino', value: guild.mainRoster.some(p => p.id === playerObj.id) ? 'Principal' : 'Reserva', inline: true },
+                ];
+            } else if (actionType === 'remove') {
+                logActionType = 'Remoção de Membro';
+                logFields = [
+                    { name: 'Guilda', value: guild.name, inline: true },
+                    { name: 'Membro', value: `<@${member.id}> (${member.user.tag})`, inline: true },
+                ];
+            }
+            await sendLogMessage(client, globalConfig, interaction, logActionType, replyMessage, logFields);
             // A interação original do UserSelectMenu foi 'updated' ou 'deferReply'd.
             // Agora usamos editReply (se foi deferido) ou followUp (se o update inicial falhou e não fizemos defer).
             // Para simplificar: se interaction.deferred for true, usar editReply, senão followUp.
