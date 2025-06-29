@@ -1,6 +1,5 @@
 // commands/definir-canal.js
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require('discord.js');
-// Importações DIRETAS dos módulos necessários
 const { loadConfig, saveConfig } = require('../handlers/db/configDb'); 
 const { sendLogMessage } = require('../handlers/utils/logManager'); 
 

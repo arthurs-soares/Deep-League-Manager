@@ -4,7 +4,6 @@ const { MAX_ROUNDS } = require('../../utils/constants'); // Importar de constant
 
 /**
  * Constrói as ActionRows com os botões de pontuação para os rounds.
- * AGORA USA NOMES DE ENTIDADES PARA OS CUSTOMIDs.
  * @param {string} yourEntityName - Nome de exibição da sua entidade.
  * @param {string} enemyEntityName - Nome de exibição da entidade inimiga.
  * @param {number} currentRound - O round atual (para rótulos e IDs dos botões).
@@ -65,7 +64,6 @@ function createInitialControlButtons() {
 
 /**
  * Função central para determinar e criar os botões da war com base no seu status.
- * USA A ESTRUTURA GENERALIZADA yourEntity/enemyEntity.
  * @param {Object} warData - Os dados da guerra.
  * @returns {Array<ActionRowBuilder>} Os componentes (botões) para a mensagem da war.
  */

@@ -7,7 +7,6 @@ const { ActivityType, PresenceUpdateStatus } = require('discord.js');
 const statusList = [
     { name: 'Deep League Brasil', type: ActivityType.Watching },
     { name: 'Gerenciando guildas', type: ActivityType.Playing },
-    // Adicione mais status aqui se desejar
 ];
 
 let currentStatusIndex = 0; // Índice do status atual na lista.

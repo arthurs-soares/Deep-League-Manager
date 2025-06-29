@@ -13,7 +13,7 @@ module.exports = {
             option.setName('guilda')
                 .setDescription('Nome da guilda para deletar (comece a digitar para ver sugestões)')
                 .setRequired(true)
-                .setAutocomplete(true)), // <-- Autocomplete habilitado
+                .setAutocomplete(true)),
 
     async execute(interaction, client, globalConfig) {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });

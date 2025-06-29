@@ -1,5 +1,4 @@
 // handlers/panel/rosterUtils.js
-// (Idealmente, mova COOLDOWN_DAYS e MAX_ROSTER_SIZE para handlers/utils/constants.js e importe de lá)
 
 // --- FUNÇÃO AUXILIAR: PROCESSAR ROSTER INPUT GERAL (para inputs de texto) ---
 const processRosterInput = async (input) => {

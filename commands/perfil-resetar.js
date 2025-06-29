@@ -44,7 +44,6 @@ module.exports = {
             userProfile.personalScore = { wins: 0, losses: 0 };
             userProfile.bio = null;
             userProfile.bannerUrl = null;
-            // Adicione outros campos que queira resetar aqui
 
             await saveUserProfile(userProfile);
 

@@ -27,27 +27,15 @@ const {
 } = require('./panel/common/editHandlers');
 const { handleGuildPanelSetcoleader, handleGuildPanelSetcoleaderSubmit, handleGuildPanelTransferleader, handleGuildPanelTransferleaderSubmit } = require('./panel/common/leadershipHandlers');
 
-// // REMOVA ESTE BLOCO INTEIRO:
-// const {
-//     processRosterInput, 
-//     handleGuildPanelAddmember,
-//     // ... e todas as outras funções que estavam em rosterHandlers.js
-//     handleConfirmLeaveGuild         
-// } = require('./panel/rosterHandlers'); // <--- LINHA PROBLEMÁTICA
-
-
 // Importações dos handlers de War Ticket (do indexador de War Ticket)
-const {
-    handleWarTicketButton,
-    handleWarTicketModalSubmit,
-    handleWarAcceptButton,
-    handleWarRequestDodgeButton,
-    handleWarDodgeSelectGuildSubmit,
-    handleWarRoundButton,
-} = require('./war/warTicketHandlers');
+const { handleWarTicketButton, handleWarTicketModalSubmit } = require('./war/warTicketHandlers');
+const { handleWarRequestDodgeButton } = require('./war/core/warDodgeHandler');
+const { handleWarDodgeSelectGuildSubmit } = require('./war/core/warDodgeHandler');
+const { handleWarRoundButton } = require('./war/core/warRoundHandler')
+const { handleWarAcceptButton } = require('./war/core/warAcceptHandler');
 
 // Importações dos módulos utilitários (handlers/utils)
-const { COLOR_MAP, resolveDisplayColor, COOLDOWN_DAYS, MAX_ROSTER_SIZE } = require('./utils/constants'); // Adicionado COOLDOWN_DAYS, MAX_ROSTER_SIZE se você os moveu para cá
+const { COLOR_MAP, resolveDisplayColor, COOLDOWN_DAYS, MAX_ROSTER_SIZE } = require('./utils/constants');
 const { sendLogMessage } = require('./utils/logManager');
 const { manageLeaderRole, manageCoLeaderRole, cleanUpLeadershipRoles } = require('./utils/roleManager');
 const { getAndValidateGuild } = require('./utils/validation');

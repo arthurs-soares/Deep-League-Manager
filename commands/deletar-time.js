@@ -59,9 +59,7 @@ module.exports = {
                 // Chama a função de deleção do DB
                 const deleted = await deleteTeamByName(team.name);
 
-                // ✅ CORREÇÃO AQUI: Verifique o resultado de 'deleted' ANTES de prosseguir
                 if (deleted) {
-                    // --- Se a deleção foi bem-sucedida, faça tudo isso ---
                     client.emit('updateTeamLeaderboard');
 
                     await sendLogMessage(
@@ -84,7 +82,6 @@ module.exports = {
                     console.log(`🗑️ Time "${team.name}" deletado por ${interaction.user.tag} (${interaction.user.id}).`);
 
                 } else {
-                    // --- Se a deleção FALHOU, informe o erro ---
                     console.error(`Falha ao deletar o time "${team.name}" do DB. A função deleteTeamByName retornou false.`);
                     await confirmation.update({ 
                         content: `❌ Falha ao deletar o time **${team.name}** do banco de dados. O time pode já ter sido deletado por outra pessoa.`, 

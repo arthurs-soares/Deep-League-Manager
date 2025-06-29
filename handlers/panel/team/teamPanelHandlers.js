@@ -187,7 +187,6 @@ async function handleTeamPanelManageRosterSubmit(interaction, teamIdSafe, global
             playerErrors.push(`${member.tag} já está na guilda "${userInAnyOtherGuild.name}" e não pode estar em um time.`);
             continue;
         }
-        // Adicionar lógica de cooldown para times se necessário (similar a `recentlyLeftUsers` mas para times)
         validatedRoster.push({ id: member.id, username: member.username });
     }
 

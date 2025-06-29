@@ -1,8 +1,7 @@
 // handlers/db/guildDb.js
-const { getDb } = require('../../utils/database'); // ✅ Mantenha apenas esta importação do database
+const { getDb } = require('../../utils/database');
 const { ObjectId } = require('mongodb');
 
-// A função getGuildsCollection que você criou é ÓTIMA. Vamos usá-la em tudo.
 const getGuildsCollection = () => {
     const db = getDb();
     if (!db) {
@@ -12,10 +11,8 @@ const getGuildsCollection = () => {
 };
 
 async function saveGuildData(guildData) {
-    // ✅ Perfeito, já usa getDb() implicitamente via getGuildsCollection se você ajustar.
     const guildsCollection = getDb().collection('guilds'); 
 
-    // O resto da sua função saveGuildData está muito bom com a lógica if/else para update/insert.
     if (guildData._id) {
         const { _id, ...dataToUpdate } = guildData;
         return await guildsCollection.replaceOne({ _id: new ObjectId(_id) }, dataToUpdate);
@@ -49,16 +46,13 @@ async function loadGuildById(id) {
 
 async function loadAllGuilds() {
     try {
-        const collection = getGuildsCollection(); // Use-a aqui também
+        const collection = getGuildsCollection();
         return await collection.find({}).toArray();
     } catch (error) {
         console.error("❌ Erro ao carregar todas as guildas:", error);
         throw error;
     }
 }
-
-// ... (outras funções como deleteGuildByName, findGuildByLeader, isUserInAnyGuild)
-// Certifique-se que TODAS elas chamam getGuildsCollection() para obter a coleção.
 
 async function isUserInAnyGuild(userId) {
     try {
@@ -93,7 +87,7 @@ async function findGuildByLeader(userId) {
         return await collection.findOne({
             $or: [
                 { "leader.id": userId },
-                { "coLeader.id": userId } // Considera co-líder também para encontrar "sua" guilda no painel
+                { "coLeader.id": userId }
             ]
         });
     } catch (error) {

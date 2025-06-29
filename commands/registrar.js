@@ -1,10 +1,9 @@
 // commands/registrar.js
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags, PermissionFlagsBits } = require('discord.js');
-// Importações DIRETAS dos módulos necessários (do handler principal)
 const { saveGuildData, loadGuildByName, isUserInAnyGuild, manageLeaderRole, manageCoLeaderRole, saveConfig, sendLogMessage, manageGuildForumPost } = require('../handlers'); 
 
 
-const COOLDOWN_DAYS = 3; // Cooldown de 3 dias para troca de guilda
+const COOLDOWN_DAYS = 3;
 
 // Função auxiliar para formatar a duração do cooldown
 function formatDuration(ms) {
@@ -135,7 +134,7 @@ module.exports = {
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 updatedBy: interaction.user.id,
-                forumPostId: null, // NOVO: Campo para armazenar o ID do post do fórum
+                forumPostId: null,
             };
 
             await saveGuildData(newGuild);

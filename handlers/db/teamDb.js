@@ -2,7 +2,6 @@
 // Módulo para interagir com a coleção 'teams' no banco de dados.
 
 const { ObjectId } = require('mongodb');
-// ✅ CORREÇÃO: Importação padronizada e com caminho correto
 const { getDb } = require('../../utils/database');
 
 const teamCache = new Map();
@@ -29,7 +28,6 @@ async function loadTeamByName(teamName) {
             return JSON.parse(JSON.stringify(cachedEntry.data));
         }
     }
-    // ✅ CORREÇÃO: Usa getDb() de forma consistente
     const teamsCollection = getDb().collection('teams');
     try {
         let team = await teamsCollection.findOne({ name: { $regex: new RegExp(`^${teamName}$`, 'i') } });
@@ -45,7 +43,6 @@ async function loadTeamByName(teamName) {
 }
 
 async function findTeamByLeader(userId) {
-    // ✅ CORREÇÃO: Usa getDb() de forma consistente
     const teamsCollection = getDb().collection('teams');
     try {
         const team = await teamsCollection.findOne({ 'leader.id': userId });
@@ -64,7 +61,6 @@ async function loadAllTeams() {
             return JSON.parse(JSON.stringify(cachedEntry.data));
         }
     }
-    // ✅ CORREÇÃO: Usa getDb() de forma consistente
     const teamsCollection = getDb().collection('teams');
     try {
         let teams = await teamsCollection.find({}).toArray();
@@ -80,7 +76,6 @@ async function loadAllTeams() {
 }
 
 async function isUserInAnyTeam(userId) {
-    // ✅ CORREÇÃO: Usa getDb() de forma consistente
     const teamsCollection = getDb().collection('teams');
     try {
         const team = await teamsCollection.findOne({

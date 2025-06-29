@@ -1,6 +1,5 @@
 // commands/registrar-time.js
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags, PermissionFlagsBits } = require('discord.js');
-// Importando handlers de Time e de Usuário/Guilda para validação cruzada
 const { saveTeamData, loadTeamByName, isUserInAnyTeam } = require('../handlers/db/teamDb');
 const { isUserInAnyGuild } = require('../handlers/db/guildDb');
 const { sendLogMessage } = require('../handlers/utils/logManager');
@@ -45,8 +44,6 @@ module.exports = {
             }
 
             // 2. Verifica se o líder já está em outra guilda ou time
-            // DECISÃO DE NEGÓCIO: Permitimos que um membro de guilda crie um time?
-            // Por enquanto, vamos manter a regra de que ele não pode estar em NENHUMA outra entidade.
             const userInGuild = await isUserInAnyGuild(leader.id);
             if (userInGuild) {
                 return interaction.editReply({ content: `❌ O usuário ${leader.toString()} já está na guilda "${userInGuild.name}" e não pode liderar um time.` });
@@ -60,10 +57,10 @@ module.exports = {
             const newTeam = {
                 name: teamName,
                 leader: { id: leader.id, username: leader.username },
-                roster: [], // Roster único, não dividido
+                roster: [],
                 score: { wins: 0, losses: 0 },
                 logo: null,
-                color: '#8E44AD', // Roxo padrão para times
+                color: '#8E44AD',
                 createdBy: interaction.user.id,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
@@ -73,7 +70,7 @@ module.exports = {
             // 4. Salva o novo time no banco de dados
             await saveTeamData(newTeam);
 
-            // 5. Emite evento para atualizar ranking de times (será criado na Tarefa 8)
+            // 5. Emite evento para atualizar ranking de times
             client.emit('updateTeamLeaderboard'); 
 
             // 6. Envia log da ação

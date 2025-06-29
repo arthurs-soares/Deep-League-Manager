@@ -8,8 +8,6 @@ const { COOLDOWN_DAYS, MAX_ROSTER_SIZE } = require('../../utils/constants');
 
 
 async function handleProfileLeaveGuild(interaction, guildMongoId, globalConfig, client) {
-    // ... (COPIE O CORPO DA FUNÇÃO handleProfileLeaveGuild DO SEU rosterHandlers.js ORIGINAL AQUI)
-    // As primeiras linhas seriam:
     const guild = await loadGuildById(guildMongoId);
     if (!guild) {
         return interaction.reply({ content: '❌ A guilda da qual você está tentando sair não foi encontrada. Ela pode ter sido deletada.', ephemeral: true });
@@ -41,8 +39,6 @@ async function handleProfileLeaveGuild(interaction, guildMongoId, globalConfig, 
 }
 
 async function handleConfirmLeaveGuild(interaction, guildMongoId, globalConfig, client) {
-    // ... (COPIE O CORPO DA FUNÇÃO handleConfirmLeaveGuild DO SEU rosterHandlers.js ORIGINAL AQUI)
-    // As primeiras linhas seriam:
     await interaction.deferUpdate();
     const guild = await loadGuildById(guildMongoId);
     if (!guild) {

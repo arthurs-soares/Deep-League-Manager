@@ -1,8 +1,5 @@
 // commands/ajuda.js
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, MessageFlags } = require('discord.js');
-// A lógica principal ainda é local ou via client.guildPanelHandlers
-// Este comando não importa diretamente do DB ou utils, então não é o problema principal aqui,
-// mas é incluído para garantir que a versão completa está sempre presente.
 
 // Objeto central com os detalhes de todos os comandos para fácil manutenção
 const commandDetails = {

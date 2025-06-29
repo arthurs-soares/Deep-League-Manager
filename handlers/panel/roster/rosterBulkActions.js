@@ -39,8 +39,6 @@ async function handleGuildPanelBulkaddmember(interaction, guildIdSafe, globalCon
 }
 
 async function handleGuildPanelBulkaddmemberSubmit(interaction, guildIdSafe, globalConfig, client) {
-    // ... (COPIE O CORPO DA FUNÇÃO handleGuildPanelBulkaddmemberSubmit DO SEU rosterHandlers.js ORIGINAL AQUI)
-    // As primeiras linhas seriam:
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const guild = await getAndValidateGuild(guildIdSafe, interaction, globalConfig, client, loadGuildByName, false, true); 
     if (!guild) return;

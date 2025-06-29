@@ -1,6 +1,5 @@
 // commands/setup-war-ticket.js
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionFlagsBits } = require('discord.js');
-// Importações DIRETAS dos módulos necessários (do handler principal)
 const { saveConfig, sendLogMessage } = require('../handlers'); 
 
 module.exports = {
@@ -42,12 +41,12 @@ module.exports = {
 
             const panelEmbed = new EmbedBuilder()
                 .setTitle('⚔️ Painel de Guerra ⚔️')
-                .setColor(globalConfig.embedColor || '#FFD700') // Cor padrão para guerra
+                .setColor(globalConfig.embedColor || '#FFD700')
                 .setDescription('Clique no botão abaixo para preencher o formulário e puxar uma War/Glad contra outra guilda.')
-                .setImage('https://placehold.co/1920x400/0d1117/ffffff?text=Painel+de+War'); // Placeholder: Você pode usar uma URL de imagem para o banner
+                .setImage('https://placehold.co/1920x400/0d1117/ffffff?text=Painel+de+War');
 
             const pullWarButton = new ButtonBuilder()
-                .setCustomId('pull_war_ticket') // ID CUSTOMIZADO para o botão
+                .setCustomId('pull_war_ticket')
                 .setLabel('Puxar War/Glad')
                 .setStyle(ButtonStyle.Primary)
                 .setEmoji('🔥');

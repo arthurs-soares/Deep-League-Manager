@@ -16,7 +16,6 @@ async function handleGuildPanelManageRosters_Initial(interaction, guildIdSafe, g
             return; 
         }
 
-        // ---- CORREÇÃO AQUI ----
         // Criamos o menu e já definimos todas as suas propriedades, incluindo as opções, de uma só vez.
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId(`manage_rosters_action_select_${guildIdSafe}`)
@@ -83,7 +82,6 @@ async function handleGuildPanelManageRosters_Initial(interaction, guildIdSafe, g
 }
 
 async function handleGuildPanelManageRosters_SelectAction(interaction, guildIdSafe, globalConfig, client) {
-    // ... (COPIE O CORPO DA FUNÇÃO handleGuildPanelManageRosters_SelectAction DO SEU rosterHandlers.js ORIGINAL AQUI)
     // As primeiras linhas seriam:
     console.log(`[DIAGNÓSTICO DROPDOWN] Ação selecionada: ${interaction.values[0]}`);
     const action = interaction.values[0];

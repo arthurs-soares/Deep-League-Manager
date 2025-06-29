@@ -74,7 +74,6 @@ async function handleGuildPanelManagePlayer_SelectUser(interaction, client, glob
                     replyMessage = msg;
                     break;
                 }
-                // ... (resto da lógica de 'add')
                 if (guild.mainRoster.length < MAX_ROSTER_SIZE) {
                     guild.mainRoster.push(playerObj);
                     replyMessage = `✅ ${member.toString()} adicionado ao **Roster Principal** da guilda **${guild.name}**!`;

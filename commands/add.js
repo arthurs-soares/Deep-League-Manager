@@ -83,11 +83,6 @@ module.exports = {
         // Construindo o Embed para a resposta
         const resultEmbed = new EmbedBuilder()
             .setTitle('✨ Resultado da Adição à Thread ✨')
-            // Tenta usar a função de resolução de cor do seu handler.
-            // Se globalConfig não for passada para execute, client.guildPanelHandlers.resolveDisplayColor pode precisar
-            // buscar globalConfig de client ou usar um fallback interno.
-            // Para este exemplo, assumimos que resolveDisplayColor pode lidar com globalConfig sendo undefined
-            // ou você pode ajustar para passar globalConfig para esta função execute.
             .setColor(client.guildPanelHandlers?.resolveDisplayColor?.(interaction, null) || '#0099ff') // Passando interaction para contexto se necessário
             .setTimestamp();
 

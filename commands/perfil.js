@@ -2,7 +2,7 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { isUserInAnyGuild } = require('../handlers/db/guildDb');
 const { loadUserProfile } = require('../handlers/db/userProfileDb');
-const { isUserInAnyTeam, findTeamByLeader } = require('../handlers/db/teamDb'); // New import
+const { isUserInAnyTeam, findTeamByLeader } = require('../handlers/db/teamDb');
 const { resolveDisplayColor } = require('../handlers/utils/constants');
 const humanizeDuration = require('humanize-duration');
 
@@ -30,11 +30,11 @@ module.exports = {
         
         const userGuild = await isUserInAnyGuild(targetUser.id);
         const userProfile = await loadUserProfile(targetUser.id);
-        const userTeam = await isUserInAnyTeam(targetUser.id); // New line
+            const userTeam = await isUserInAnyTeam(targetUser.id);
 
-        const profileEmbed = new EmbedBuilder()
-            .setAuthor({ name: `Perfil de ${targetMember.displayName}`, iconURL: targetMember.displayAvatarURL() })
-            .setTimestamp();
+            const profileEmbed = new EmbedBuilder()
+                .setAuthor({ name: `Perfil de ${targetMember.displayName}`, iconURL: targetMember.displayAvatarURL() })
+                .setTimestamp();
         
         let description = userProfile.bio ? `> ${userProfile.bio}` : `Perfil público de ${targetUser.toString()}.`;
         if (userProfile.bannerUrl) profileEmbed.setImage(userProfile.bannerUrl);
@@ -78,7 +78,6 @@ module.exports = {
                     { name: 'Status', value: '🟢 **Ativo**', inline: true }
                 );
 
-            // <-- LÓGICA DO BOTÃO -->
             // Adiciona o botão "Sair da Guilda" apenas se o usuário está vendo o próprio perfil
             if (isSelfProfile) {
                 const leaveGuildButton = new ButtonBuilder()

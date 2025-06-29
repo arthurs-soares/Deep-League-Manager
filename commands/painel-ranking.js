@@ -1,7 +1,6 @@
 // commands/painel-ranking.js
 
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-// Importação DIRETA de saveConfig do handler principal
 const { saveConfig } = require('../handlers'); 
 
 

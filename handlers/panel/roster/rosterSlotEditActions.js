@@ -9,8 +9,6 @@ const { COOLDOWN_DAYS, MAX_ROSTER_SIZE } = require('../../utils/constants');
 
 // --- HANDLERS DE TROCAR JOGADOR POR SLOT (MANTIDO) ---
 async function handleGuildPanelTrocarJogador_Initial(interaction, guildIdSafe, globalConfig, client) {
-    // ... (COPIE O CORPO DA FUNÇÃO handleGuildPanelTrocarJogador_Initial DO SEU rosterHandlers.js ORIGINAL AQUI)
-    // As primeiras linhas seriam:
     console.log(`[DIAGNÓSTICO SLOT] handleGuildPanelTrocarJogador_Initial INICIADO para guilda: ${guildIdSafe}`);
     try {
         const guild = await getAndValidateGuild(guildIdSafe, interaction, globalConfig, client, loadGuildByName, false, true);
@@ -30,7 +28,6 @@ async function handleGuildPanelTrocarJogador_Initial(interaction, guildIdSafe, g
         const row = new ActionRowBuilder().addComponents(selectMenu);
 
         console.log(`[DIAGNÓSTICO SLOT] handleGuildPanelTrocarJogador_Initial: Retornando menu de seleção de roster.`);
-        // RETORNA OS DADOS EM VEZ DE RESPONDER
         return { type: 'content', content: `Qual roster de **${guild.name}** você gostaria de editar por slot?`, components: [row], flags: MessageFlags.Ephemeral };
     } catch (error) {
         console.error(`❌ [DIAGNÓSTICO SLOT] ERRO FATAL em handleGuildPanelTrocarJogador_Initial:`, error);
@@ -39,8 +36,6 @@ async function handleGuildPanelTrocarJogador_Initial(interaction, guildIdSafe, g
 }
 
 async function handleGuildPanelTrocarJogador_RosterSelect(interaction, guildIdSafe, globalConfig, client) {
-    // ... (COPIE O CORPO DA FUNÇÃO handleGuildPanelTrocarJogador_RosterSelect DO SEU rosterHandlers.js ORIGINAL AQUI)
-    // As primeiras linhas seriam:
     console.log(`[DIAGNÓSTICO SLOT] handleGuildPanelTrocarJogador_RosterSelect INICIADO para guilda: ${guildIdSafe}, rosterType: ${interaction.values[0]}`);
     try {
         const rosterType = interaction.values[0];
@@ -73,7 +68,6 @@ async function handleGuildPanelTrocarJogador_RosterSelect(interaction, guildIdSa
         }
         
         console.log(`[DIAGNÓSTICO SLOT] handleGuildPanelTrocarJogador_RosterSelect: Mostrando modal para edição de slots.`);
-        // A função agora responde diretamente à sua própria interação com o modal.
         await interaction.showModal(modal);
 
     } catch (error) {
@@ -85,8 +79,6 @@ async function handleGuildPanelTrocarJogador_RosterSelect(interaction, guildIdSa
 }
 
 async function handleGuildPanelTrocarJogador_RosterSubmit(interaction, guildIdSafe, globalConfig, client) {
-    // ... (COPIE O CORPO DA FUNÇÃO handleGuildPanelTrocarJogador_RosterSubmit DO SEU rosterHandlers.js ORIGINAL AQUI)
-    // As primeiras linhas seriam:
     console.log(`[DIAGNÓSTICO SLOT] handleGuildPanelTrocarJogador_RosterSubmit INICIADO para guilda: ${guildIdSafe}`);
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 

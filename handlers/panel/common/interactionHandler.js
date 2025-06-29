@@ -76,7 +76,6 @@ async function routeButtonInteraction(interaction, client, globalConfig) {
         'guildpanel_setcoleader_': 'handleGuildPanelSetcoleader', // Exemplo
         'guildpanel_transferleader_': 'handleGuildPanelTransferleader', // Exemplo
         'guildpanel_manage_rosters_dropdown_': 'handleGuildPanelManageRosters_Initial',
-        // Adicione outros prefixos que levam a um handler específico aqui
     };
 
     for (const prefix in prefixMap) {
@@ -109,7 +108,6 @@ async function routeButtonInteraction(interaction, client, globalConfig) {
         'pull_war_ticket': client.guildPanelHandlers.handleWarTicketButton,
         'war_accept': client.guildPanelHandlers.handleWarAcceptButton,
         'war_request_dodge': client.guildPanelHandlers.handleWarRequestDodgeButton,
-        // Adicione outros botões de ID exato aqui
     };
 
     if (exactIdMap[customId]) {
@@ -334,7 +332,6 @@ async function handleInteraction(interaction, client, globalConfig) {
                 // Se não for nenhum dos IDs conhecidos ou de coletor, loga como não tratado
                 else {
                     console.warn(`[InteractionHandler GLOBAL] CustomId de botão não tratado globalmente: ${customId}`);
-                    // É mais seguro não responder aqui para evitar conflitos com outros possíveis coletores
                     if (!interaction.replied && !interaction.deferred) {
                         // Considere remover esta resposta se causar problemas
                         // await interaction.reply({ content: `❌ Ação de botão não reconhecida: ${customId}`, ephemeral: true });
@@ -473,8 +470,6 @@ async function handleGuildPanelButton(interaction, client, globalConfig, customI
     const finalHandler = client.guildPanelHandlers[finalHandlerName];
 
     if (typeof finalHandler === 'function') {
-        // A lógica do manipulador para extrair o guildId precisa ser robusta.
-        // Vamos passar o ID extraído diretamente.
         await finalHandler(interaction, guildIdSafeOrMongoId, globalConfig, client);
     } else {
         // Tenta um manipulador mais genérico que pode lidar com o prefixo

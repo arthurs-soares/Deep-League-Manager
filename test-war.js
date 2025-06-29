@@ -24,7 +24,6 @@ async function setupTestGuild(name) {
         score: { wins: 0, losses: 0 },
         mainRoster: [{ id: MOCK_USER_ID_1, name: 'Mock Player 1' }], // Adiciona um jogador mock para testar score pessoal
         subRoster: [{ id: MOCK_USER_ID_2, name: 'Mock Player 2' }],
-        // Outros campos necessários podem ser adicionados aqui com valores padrão
     };
     await saveGuildData(guildData);
     console.log(`[Setup] Guilda de teste "${name}" criada/resetada no banco de dados.`);

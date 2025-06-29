@@ -68,5 +68,4 @@ module.exports = {
             components: [row1]
         });
     },
-    // Adicionaremos async autocomplete(interaction, client, globalConfig) aqui depois
 };

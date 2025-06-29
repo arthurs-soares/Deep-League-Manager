@@ -43,9 +43,6 @@ module.exports = {
                 return interaction.editReply({ content: `❌ "${nameToSearch}" não encontrado como Guilda ou Time!`, flags: MessageFlags.Ephemeral });
             }
 
-            // ... (O código para construir e enviar o embed de DETALHES da guilda/time permanece o MESMO que você já tem)
-            // Cole aqui a seção "MODO DETALHES DE GUILDA OU TIME" da sua versão anterior do visualizar.js
-            // Certifique-se de usar a constante correta para o tamanho do roster do time (TEAM_MAX_ROSTER_SIZE)
             const embedColor = resolveDisplayColor(entity.color, globalConfig);
             const detailEmbed = new EmbedBuilder()
                 .setTitle(`${entityType === 'Guilda' ? '🏰' : '⚽'} ${entity.name}`)

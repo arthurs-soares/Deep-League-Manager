@@ -59,8 +59,11 @@ async function handleGuildPanelAddmemberSubmit(interaction, guildIdSafe, globalC
         return interaction.editReply({ content: `❌ Usuário com ID \`${cleanedId}\` (digitado como \`${memberId}\`) não encontrado neste servidor.` });
     }
 
+    const isLeader = guild.leader?.id === member.id;
+    const isCoLeader = guild.coLeader?.id === member.id;
+
     const userInGuild = await isUserInAnyGuild(member.id);
-    if (userInGuild && userInGuild.name !== guild.name) { 
+    if (userInGuild && userInGuild.name !== guild.name && !isLeader && !isCoLeader) { 
         return interaction.editReply({ content: `❌ O usuário ${member.toString()} já está na guilda "${userInGuild.name}" e não pode ser adicionado a esta!` });
     }
 
@@ -124,18 +127,7 @@ async function handleGuildPanelAddmemberSubmit(interaction, guildIdSafe, globalC
 
 // --- HANDLERS DE REMOVER MEMBRO (SINGULAR por ID/Menção) ---
 async function handleGuildPanelRemovemember(interaction, guildIdSafe, globalConfig, client) {
-    // ... (COPIE O CORPO DA FUNÇÃO handleGuildPanelRemovemember DO SEU rosterHandlers.js ORIGINAL AQUI)
-    // As primeiras linhas seriam:
-    const guild = await getAndValidateGuild(guildIdSafe, interaction, globalConfig, client, loadGuildByName, false, true); 
-    // ... resto do corpo da função ...
-    await interaction.showModal(modal); // Certifique-se de que esta é a única resposta à interação do botão
-}
-
-async function handleGuildPanelRemovememberSubmit(interaction, guildIdSafe, globalConfig, client) {
-    // ... (COPIE O CORPO DA FUNÇÃO handleGuildPanelRemovememberSubmit DO SEU rosterHandlers.js ORIGINAL AQUI)
-    // As primeiras linhas seriam:
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-    const guild = await getAndValidateGuild(guildIdSafe, interaction, globalConfig, client, loadGuildByName, false, true); 
+    const guild = await getAndValidateGuild(guildIdSafe, interaction, globalConfig, client, loadGuildByName, false, true);
     if (!guild) return;
 
     const modal = new ModalBuilder()
@@ -150,9 +142,9 @@ async function handleGuildPanelRemovememberSubmit(interaction, guildIdSafe, glob
         .setRequired(true);
 
     modal.addComponents(new ActionRowBuilder().addComponents(memberIdInput));
-
     await interaction.showModal(modal);
 }
+
 async function handleGuildPanelRemovememberSubmit(interaction, guildIdSafe, globalConfig, client) { 
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 

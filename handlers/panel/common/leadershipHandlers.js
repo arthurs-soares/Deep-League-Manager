@@ -1,6 +1,5 @@
 // handlers/panel/leadershipHandlers.js
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
-// IMPORTAÇÕES DIRETAS para quebrar a dependência circular
 const { loadGuildByName, saveGuildData, isUserInAnyGuild } = require('../../db/guildDb'); 
 const { saveConfig } = require('../../db/configDb');                                     
 const { sendLogMessage } = require('../../utils/logManager');                              

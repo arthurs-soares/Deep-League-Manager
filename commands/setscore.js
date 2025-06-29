@@ -10,7 +10,7 @@ module.exports = {
             option.setName('guilda')
                 .setDescription('Nome da guilda para definir o score (comece a digitar para ver sugestões)')
                 .setRequired(true)
-                .setAutocomplete(true)) // <-- Autocomplete habilitado
+                .setAutocomplete(true))
         .addIntegerOption(option =>
             option.setName('vitorias')
                 .setDescription('Número de vitórias')
