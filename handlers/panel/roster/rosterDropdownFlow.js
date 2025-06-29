@@ -4,6 +4,7 @@ const { loadGuildByName } = require('../../db/guildDb');
 const { getAndValidateGuild } = require('../../utils/validation');
 const { handleGuildPanelBulkaddmember } = require('./rosterBulkActions');
 const { handleGuildPanelTrocarJogador_Initial } = require('./rosterSlotEditActions');
+const { handleGuildPanelSwapMember_Initial } = require('./rosterSwapActions');
 
 
 // --- NOVO FLUXO: GERENCIAR ROSTERS VIA DROPDOWN ---
@@ -50,6 +51,12 @@ async function handleGuildPanelManageRosters_Initial(interaction, guildIdSafe, g
                     description: 'Adiciona múltiplos membros de uma vez, via lista de IDs.',
                     value: 'bulk_add',
                     emoji: '📤',
+                },
+                {
+                    label: 'Trocar Membros (Principal <-> Reserva)',
+                    description: 'Troca um membro do roster principal por um do reserva.',
+                    value: 'swap_members',
+                    emoji: '🔄',
                 }
             );
 
@@ -95,8 +102,8 @@ async function handleGuildPanelManageRosters_SelectAction(interaction, guildIdSa
             }
         }
         
-        // Para todas as outras ações, usamos deferUpdate.
-        await interaction.deferUpdate();
+        // A interação do menu de seleção já é um "update" implícito.
+        // Não precisamos de deferUpdate() aqui. Responderemos diretamente com editReply.
 
         // Para "Editar por Slot", agora chamamos a função que retorna os componentes.
         if (action === 'edit_by_slot') {
@@ -107,6 +114,10 @@ async function handleGuildPanelManageRosters_SelectAction(interaction, guildIdSa
             } else if (slotResult && slotResult.error) {
                 return await interaction.editReply({ content: slotResult.content, components: [] });
             }
+        }
+
+        if (action === 'swap_members') {
+            return await handleGuildPanelSwapMember_Initial(interaction, guildIdSafe, client, globalConfig);
         }
         
         // Lógica para os menus de seleção de usuário.

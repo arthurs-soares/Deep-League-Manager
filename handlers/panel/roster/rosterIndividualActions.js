@@ -225,9 +225,99 @@ async function handleGuildPanelRemovememberSubmit(interaction, guildIdSafe, glob
     await interaction.editReply({ content: `✅ Membro **${memberTag}** removido da guilda com sucesso!` });
 }
 
+// --- HANDLERS DE MOVER MEMBRO (SINGULAR por ID/Menção) ---
+async function handleGuildPanelMovemember(interaction, guildIdSafe, globalConfig, client) {
+    const guild = await getAndValidateGuild(guildIdSafe, interaction, globalConfig, client, loadGuildByName, false, true);
+    if (!guild) return;
+
+    const modal = new ModalBuilder()
+        .setCustomId(`modal_guildpanel_movemember_${guildIdSafe}`)
+        .setTitle(`Mover Membro - ${guild.name}`);
+
+    const memberIdInput = new TextInputBuilder()
+        .setCustomId('member_id')
+        .setLabel("ID ou @Menção do Membro para Mover")
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder("ID ou @menção do usuário a ser movido")
+        .setRequired(true);
+
+    modal.addComponents(new ActionRowBuilder().addComponents(memberIdInput));
+    await interaction.showModal(modal);
+}
+
+async function handleGuildPanelMovememberSubmit(interaction, guildIdSafe, globalConfig, client) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+    const guild = await getAndValidateGuild(guildIdSafe, interaction, globalConfig, client, loadGuildByName, false, true);
+    if (!guild) return;
+
+    const memberId = interaction.fields.getTextInputValue('member_id');
+    const cleanedId = (memberId.match(/^<@!?(\d+)>$/) || [, memberId])[1];
+
+    if (!/^\d+$/.test(cleanedId)) {
+        return interaction.editReply({ content: '❌ O ID do membro fornecido é inválido. Deve ser numérico ou uma menção válida.' });
+    }
+
+    const member = await interaction.guild.members.fetch(cleanedId).catch(() => null);
+    if (!member) {
+        return interaction.editReply({ content: `❌ Usuário com ID \`${cleanedId}\` não encontrado neste servidor.` });
+    }
+
+    const memberObj = { id: member.id, username: member.user.username, joinedAt: new Date().toISOString() };
+
+    const mainRosterIndex = guild.mainRoster.findIndex(m => m.id === cleanedId);
+    const subRosterIndex = guild.subRoster.findIndex(m => m.id === cleanedId);
+
+    let sourceRoster, destRoster, sourceRosterName, destRosterName;
+
+    if (mainRosterIndex !== -1) {
+        sourceRoster = guild.mainRoster;
+        destRoster = guild.subRoster;
+        sourceRosterName = 'Principal';
+        destRosterName = 'Reserva';
+    } else if (subRosterIndex !== -1) {
+        sourceRoster = guild.subRoster;
+        destRoster = guild.mainRoster;
+        sourceRosterName = 'Reserva';
+        destRosterName = 'Principal';
+    } else {
+        return interaction.editReply({ content: `❌ O usuário ${member.toString()} não foi encontrado em nenhum roster desta guilda.` });
+    }
+
+    // Remove from source roster
+    const [movedMember] = sourceRoster.splice(mainRosterIndex !== -1 ? mainRosterIndex : subRosterIndex, 1);
+
+    // Add to destination roster
+    destRoster.push(movedMember);
+
+    guild.updatedAt = new Date().toISOString();
+    guild.updatedBy = interaction.user.id;
+
+    await saveGuildData(guild);
+    await manageGuildForumPost(client, guild, globalConfig, 'update', interaction);
+    client.emit('updateLeaderboard');
+
+    await sendLogMessage(
+        client, globalConfig, interaction,
+        'Movimentação de Membro',
+        `O membro **${member.user.tag}** foi movido do Roster ${sourceRosterName} para o Roster ${destRosterName} da guilda **${guild.name}**.`,
+        [
+            { name: 'Guilda', value: guild.name, inline: true },
+            { name: 'Membro Movido', value: `<@${member.id}>`, inline: true },
+            { name: 'Movido de', value: `Roster ${sourceRosterName}`, inline: true },
+            { name: 'Movido para', value: `Roster ${destRosterName}`, inline: true },
+        ]
+    );
+
+    await interaction.editReply({ content: `✅ Membro **${member.user.tag}** movido do Roster **${sourceRosterName}** para o **${destRosterName}** com sucesso!` });
+}
+
+
 module.exports = {
     handleGuildPanelAddmember,
     handleGuildPanelAddmemberSubmit,
     handleGuildPanelRemovemember,
     handleGuildPanelRemovememberSubmit,
+    handleGuildPanelMovemember,
+    handleGuildPanelMovememberSubmit,
 };

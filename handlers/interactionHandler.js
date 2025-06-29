@@ -74,7 +74,17 @@ async function handleInteraction(interaction, client, globalConfig) {
                     await interaction.reply({ content: '❌ Funcionalidade de gerenciamento de rosters (dropdown) não configurada corretamente.', ephemeral: true });
                 }
             }
-            // 6. Outros botões (do painel de guilda, ex: editar perfil, liderança)
+            // 6. Botão de confirmação de troca de membros
+            else if (interaction.customId.startsWith('swap_confirm_')) {
+                const [, , guildIdSafe, mainUserId, subUserId] = interaction.customId.split('_');
+                if (typeof client.guildPanelHandlers.handleGuildPanelSwapMember_Confirm === 'function') {
+                    await client.guildPanelHandlers.handleGuildPanelSwapMember_Confirm(interaction, guildIdSafe, mainUserId, subUserId, client, globalConfig);
+                } else {
+                    console.warn(`⚠️ Handler para swap_confirm não encontrado.`);
+                    await interaction.reply({ content: '❌ Funcionalidade de troca de membros não configurada corretamente.', ephemeral: true });
+                }
+            }
+            // 7. Outros botões (do painel de guilda, ex: editar perfil, liderança)
             else if (interaction.customId.startsWith('guildpanel_')) { 
                 const parts = interaction.customId.split('_');
                 const action = parts[1]; 
@@ -146,6 +156,16 @@ async function handleInteraction(interaction, client, globalConfig) {
                 } else {
                     console.warn(`⚠️ Handler para manageplayer_roster_type_select não encontrado.`);
                     await interaction.reply({ content: '❌ Funcionalidade de seleção de tipo de roster para mover não configurada corretamente.', ephemeral: true });
+                }
+            }
+            // 5. Menus de seleção de usuário para "Trocar Membros" (UserSelectMenu)
+            else if (interaction.customId.startsWith('swap_select_')) {
+                const [, , , guildIdSafe] = interaction.customId.split('_');
+                if (typeof client.guildPanelHandlers.handleGuildPanelSwapMember_Select === 'function') {
+                    await client.guildPanelHandlers.handleGuildPanelSwapMember_Select(interaction, guildIdSafe, client, globalConfig);
+                } else {
+                    console.warn(`⚠️ Handler para swap_select não encontrado.`);
+                    await interaction.reply({ content: '❌ Funcionalidade de troca de membros não configurada corretamente.', ephemeral: true });
                 }
             }
             // Outros menus de seleção, se houver

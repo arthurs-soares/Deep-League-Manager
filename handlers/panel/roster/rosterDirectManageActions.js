@@ -18,29 +18,10 @@ async function handleGuildPanelManagePlayer_SelectUser(interaction, client, glob
 
     console.log(`[DIAGNÓSTICO JOGADOR] handleGuildPanelManagePlayer_SelectUser INICIADO. Ação: ${actionType}, Usuário ID: ${interaction.users.first()?.id}`);
 
-    // --- DEFERIR A INTERAÇÃO DO MENU DE SELEÇÃO DE USUÁRIO AQUI ---
-    if (actionType !== 'move') { // Só defere para 'add' e 'remove' por enquanto
-        try {
-            // Atualiza a mensagem original para remover os componentes e indicar processamento
-            await interaction.update({ content: 'Processando sua solicitação...', components: [], flags: MessageFlags.Ephemeral });
-        } catch (error) {
-            // Se o update falhar (ex: interação já respondida), pode ser um problema de fluxo anterior.
-            // Tentaremos um deferReply como fallback, mas o ideal é que o update funcione.
-            if (error.code !== 10062 && !interaction.deferred && !interaction.replied) { // 10062 é Unknown Interaction
-                console.warn("[DIAGNÓSTICO JOGADOR] Falha ao fazer update na interação inicial do menu, tentando deferReply.", error.message);
-                await interaction.deferReply({ ephemeral: true }).catch(e => console.error("Falha no deferReply de fallback:", e.message));
-            } else if (error.code === 10062) {
-                 console.warn("[DIAGNÓSTICO JOGADOR] Interação do menu de usuário já desconhecida ao tentar update. Fluxo pode precisar de revisão.");
-            }
-        }
-    } else {
-         try {
-            await interaction.update({ components: [] }); // Apenas remove os componentes
-        } catch (error) {
-             console.warn("[DIAGNÓSTICO JOGADOR] Falha ao fazer update (limpar componentes) na interação 'move':", error.message);
-             // Não deferimos aqui, pois 'move' vai responder com novos componentes.
-        }
-    }
+    // Lógica de resposta à interação simplificada para evitar "Interaction already acknowledged"
+    // Para 'move', a resposta será o novo menu. Para outras, será uma mensagem de processamento.
+    // A resposta real (update/editReply) será dada dentro do switch case.
+    // Isso evita responder à interação antes de ter o conteúdo final.
 
 
     try {
@@ -118,9 +99,6 @@ async function handleGuildPanelManagePlayer_SelectUser(interaction, client, glob
                 break;
 
             case 'move':
-                // A interação original do UserSelectMenu já foi respondida com interaction.update({ components: [] }) no início da função.
-                // Portanto, agora usamos followUp para enviar a próxima etapa.
-
                 console.log(`[DIAGNÓSTICO JOGADOR - MOVE] Verificando se jogador ${member.user.tag} pode ser movido na guilda ${guild.name}.`);
                 const currentMainMove = guild.mainRoster.some(p => p.id === selectedUserId);
                 const currentSubMove = guild.subRoster.some(p => p.id === selectedUserId);
@@ -137,7 +115,9 @@ async function handleGuildPanelManagePlayer_SelectUser(interaction, client, glob
                 let canMoveToMain = false;
                 let canMoveToSub = false;
 
-                if (currentSubMove && guild.mainRoster.length < MAX_ROSTER_SIZE) {
+                // LÓGICA CORRIGIDA: Permite a movimentação mesmo se o roster de destino estiver cheio,
+                // porque um espaço será liberado no roster de origem.
+                if (currentSubMove) { // Se está no sub, pode mover para o main
                     canMoveToMain = true;
                     moveSelectMenu.addOptions({
                         label: 'Roster Principal',
@@ -146,7 +126,7 @@ async function handleGuildPanelManagePlayer_SelectUser(interaction, client, glob
                         emoji: '🛡️'
                     });
                 }
-                if (currentMainMove && guild.subRoster.length < MAX_ROSTER_SIZE) {
+                if (currentMainMove) { // Se está no main, pode mover para o sub
                     canMoveToSub = true;
                     moveSelectMenu.addOptions({
                         label: 'Roster Reserva',
@@ -157,10 +137,9 @@ async function handleGuildPanelManagePlayer_SelectUser(interaction, client, glob
                 }
 
                 if (!canMoveToMain && !canMoveToSub) {
-                    let reason = "Ambos os rosters de destino estão cheios ou o jogador já está no único roster disponível para movimentação.";
-                    if (currentMainMove && guild.subRoster.length >= MAX_ROSTER_SIZE) reason = "Roster Reserva está cheio.";
-                    if (currentSubMove && guild.mainRoster.length >= MAX_ROSTER_SIZE) reason = "Roster Principal está cheio.";
-                    
+                    // Esta condição agora só deve ser atingida se o jogador não estiver em nenhum roster,
+                    // o que já é verificado acima. Mantido como uma segurança.
+                    let reason = "O jogador não parece estar em um roster que permita movimentação.";
                     console.log(`[DIAGNÓSTICO JOGADOR - MOVE] Não é possível mover ${member.user.tag}. Razão: ${reason}`);
                     return interaction.followUp({ content: `❌ Não é possível mover ${member.toString()}. ${reason}`, flags: MessageFlags.Ephemeral });
                 }
@@ -168,8 +147,8 @@ async function handleGuildPanelManagePlayer_SelectUser(interaction, client, glob
                 const moveRow = new ActionRowBuilder().addComponents(moveSelectMenu);
                 console.log(`[DIAGNÓSTICO JOGADOR - MOVE] Enviando menu de seleção de tipo de roster para mover ${member.user.tag}. CustomID do menu: ${moveSelectMenu.data.custom_id}`);
                 
-                // Esta é a resposta para a interação do UserSelectMenu (manageplayer_user_select_move_...)
-                await interaction.followUp({
+                // Responde à interação do UserSelectMenu editando a mensagem original para mostrar o novo menu.
+                await interaction.update({
                     content: `Para qual roster você deseja mover ${member.toString()}?`,
                     components: [moveRow],
                     flags: MessageFlags.Ephemeral
@@ -224,7 +203,6 @@ async function handleGuildPanelManagePlayer_SelectUser(interaction, client, glob
     }
 }
 
-// handleGuildPanelManagePlayer_SelectRosterType (A lógica de defer/edit/reply aqui parece mais correta)
 async function handleGuildPanelManagePlayer_SelectRosterType(interaction, client, globalConfig, customId) {
     const parts = customId.split('_');
     if (parts.length < 6) {
@@ -244,29 +222,7 @@ async function handleGuildPanelManagePlayer_SelectRosterType(interaction, client
 
     console.log(`[DIAGNÓSTICO MOVER] handleGuildPanelManagePlayer_SelectRosterType INICIADO. Usuário: ${selectedUserId}, Roster Destino: ${interaction.values[0]}`);
     
-    // REMOVA OU COMENTE ESTA LINHA:
-    // await interaction.deferUpdate({ ephemeral: true }); 
-    // A interação do StringSelectMenu já foi "acknowledged" pelo Discord quando o usuário fez a seleção.
-    // Se você vai editar a mensagem que continha o menu (o followUp anterior), você pode fazer isso diretamente.
-    // Se você vai enviar uma nova mensagem, use followUp.
-    // Para este fluxo, vamos assumir que queremos editar a mensagem do followUp que continha este menu,
-    // ou enviar um novo followUp se a edição não for possível/desejada.
-    // É mais comum responder ao followUp que enviou o menu.
-
-    // Para garantir que podemos responder, e como é uma ação que pode levar tempo,
-    // vamos deferir a *nova* resposta que vamos dar ao resultado desta seleção.
-    // O interaction.update() na mensagem anterior removeu os componentes.
-    // Agora, a interação atual (seleção de main/sub) precisa ser respondida.
-    try {
-         // Se a mensagem que continha este menu era efêmera e você quer responder nela:
-        await interaction.deferReply({ ephemeral: true }); // Deferir a resposta a ESTA interação
-    } catch (e) {
-        if (e.code === 10062) { // Unknown Interaction
-            console.error("[DIAGNÓSTICO MOVER] A interação para deferReply já era desconhecida. Isso é inesperado aqui.");
-            return; // Não podemos prosseguir
-        }
-        throw e; // Relança outros erros
-    }
+    await interaction.deferReply({ ephemeral: true });
 
 
     try {
@@ -298,10 +254,8 @@ async function handleGuildPanelManagePlayer_SelectRosterType(interaction, client
         if ((targetRosterType === 'main' && isCurrentlyInMain) || (targetRosterType === 'sub' && isCurrentlyInSub)) {
             return interaction.editReply({ content: `❌ ${member.toString()} já está no Roster ${targetRosterType === 'main' ? 'Principal' : 'Reserva'}.`, components: [] });
         }
-        if ((targetRosterType === 'main' && guild.mainRoster.length >= MAX_ROSTER_SIZE && !isCurrentlyInMain) ||
-            (targetRosterType === 'sub' && guild.subRoster.length >= MAX_ROSTER_SIZE && !isCurrentlyInSub)) {
-            return interaction.editReply({ content: `❌ O Roster ${targetRosterType === 'main' ? 'Principal' : 'Reserva'} da guilda **${guild.name}** está cheio. Não é possível mover.`, components: [] });
-        }
+        // LÓGICA REMOVIDA: A verificação de roster cheio não se aplica a uma movimentação,
+        // pois o número total de membros na guilda não muda.
 
         guild.mainRoster = guild.mainRoster.filter(p => p.id !== selectedUserId);
         guild.subRoster = guild.subRoster.filter(p => p.id !== selectedUserId);
@@ -329,7 +283,6 @@ async function handleGuildPanelManagePlayer_SelectRosterType(interaction, client
                 { name: 'Roster Destino', value: targetRosterType === 'main' ? 'Principal' : 'Reserva', inline: true },
             ]
         );
-        // Como usamos deferReply, agora usamos editReply para a mensagem final.
         await interaction.editReply({ content: `✅ ${member.toString()} movido para o **Roster ${targetRosterType === 'main' ? 'Principal' : 'Reserva'}** da guilda **${guild.name}**!`, components: [] });
         console.log(`[DIAGNÓSTICO MOVER] Movimentação de ${member.user.tag} concluída.`);
 

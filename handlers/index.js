@@ -66,6 +66,7 @@ const rosterDropdownFlow = require('./panel/roster/rosterDropdownFlow');
 const rosterDirectManageActions = require('./panel/roster/rosterDirectManageActions');
 const rosterLeaveActions = require('./panel/roster/rosterLeaveActions');
 const teamPanelHandlers = require('./panel/team/teamPanelHandlers');
+const rosterSwapActions = require('./panel/roster/rosterSwapActions');
 
 module.exports = {
     // Funções de Banco de Dados
@@ -150,5 +151,6 @@ module.exports = {
     ...rosterDropdownFlow,
     ...rosterDirectManageActions,
     ...rosterLeaveActions,
-    ...teamPanelHandlers
+    ...teamPanelHandlers,
+    ...rosterSwapActions
 };
