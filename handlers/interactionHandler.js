@@ -55,7 +55,16 @@ async function handleInteraction(interaction, client, globalConfig) {
                     await interaction.reply({ content: '❌ Funcionalidade de Dodge de guerra não configurada corretamente.', ephemeral: true });
                 }
             }
-            // 4. Botões de pontuação de Round
+            // 4. Botão de Atualizar Botões da War
+            else if (interaction.customId === 'war_refresh_buttons') {
+                if (typeof client.guildPanelHandlers.handleWarRefreshButton === 'function') {
+                    await client.guildPanelHandlers.handleWarRefreshButton(interaction, client, globalConfig);
+                } else {
+                    console.warn(`⚠️ Handler para atualizar botões de war não encontrado.`);
+                    await interaction.reply({ content: '❌ Funcionalidade de atualização de botões de guerra não configurada corretamente.', ephemeral: true });
+                }
+            }
+            // 5. Botões de pontuação de Round
             else if (interaction.customId.startsWith('war_round_win_')) {
                 if (typeof client.guildPanelHandlers.handleWarRoundButton === 'function') {
                     await client.guildPanelHandlers.handleWarRoundButton(interaction, globalConfig, client);

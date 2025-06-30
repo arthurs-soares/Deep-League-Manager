@@ -4,6 +4,8 @@ const { isUserInAnyGuild } = require('../handlers/db/guildDb');
 const { loadUserProfile } = require('../handlers/db/userProfileDb');
 const { isUserInAnyTeam, findTeamByLeader } = require('../handlers/db/teamDb');
 const { resolveDisplayColor } = require('../handlers/utils/constants');
+const { getEloRank, formatRankDisplay } = require('../handlers/elo/eloRanks');
+const { ELO_CONFIG } = require('../utils/eloConstants');
 const humanizeDuration = require('humanize-duration');
 
 function formatCooldown(ms) {
@@ -50,6 +52,39 @@ module.exports = {
             inline: false
         });
 
+        // Sistema de ELO
+        if (userProfile.eloData && userProfile.eloData.currentElo !== undefined) {
+            const currentElo = userProfile.eloData.currentElo;
+            const peakElo = userProfile.eloData.peakElo || currentElo;
+            const mvpCount = userProfile.eloData.mvpCount || 0;
+            const flawlessWins = userProfile.eloData.flawlessWins || 0;
+            const flawlessLosses = userProfile.eloData.flawlessLosses || 0;
+            
+            const rank = getEloRank(currentElo);
+            
+            let eloText = `${rank.emoji} **${rank.name}**\n`;
+            eloText += `**ELO Atual:** ${currentElo}\n`;
+            eloText += `**Peak ELO:** ${peakElo}\n`;
+            eloText += `**MVPs:** ${mvpCount}`;
+            
+            if (flawlessWins > 0 || flawlessLosses > 0) {
+                eloText += `\n**Flawless:** ${flawlessWins}V / ${flawlessLosses}D`;
+            }
+            
+            profileEmbed.addFields({
+                name: `${rank.emoji} Sistema ELO`,
+                value: eloText,
+                inline: true
+            });
+        } else {
+            // Usuário ainda não tem dados de ELO
+            profileEmbed.addFields({
+                name: '⚡ Sistema ELO',
+                value: `🥇 **Rank A** (Padrão)\n**ELO:** ${ELO_CONFIG.STARTING_ELO}\n*Ainda não participou de partidas ranqueadas*`,
+                inline: true
+            });
+        }
+
         const components = []; // Array para armazenar os botões
 
         if (userGuild) {
@@ -80,8 +115,9 @@ module.exports = {
 
             // Adiciona o botão "Sair da Guilda" apenas se o usuário está vendo o próprio perfil
             if (isSelfProfile) {
+                console.log(`[DEBUG LeaveGuild] Criando botão com ID da guilda: ${userGuild._id}`);
                 const leaveGuildButton = new ButtonBuilder()
-                    .setCustomId(`profile_leave_guild_${userGuild.id}`) // Passa o ID da guilda no customId
+                    .setCustomId(`profile_leave_guild_${userGuild._id}`) // Usa _id em vez de id para o MongoDB ObjectId
                     .setLabel('Sair da Guilda')
                     .setStyle(ButtonStyle.Danger)
                     .setEmoji('🚪');

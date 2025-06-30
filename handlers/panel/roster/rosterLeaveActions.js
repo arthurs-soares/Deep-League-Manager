@@ -8,10 +8,23 @@ const { COOLDOWN_DAYS, MAX_ROSTER_SIZE } = require('../../utils/constants');
 
 
 async function handleProfileLeaveGuild(interaction, guildMongoId, globalConfig, client) {
-    const guild = await loadGuildById(guildMongoId);
-    if (!guild) {
-        return interaction.reply({ content: '❌ A guilda da qual você está tentando sair não foi encontrada. Ela pode ter sido deletada.', ephemeral: true });
+    console.log(`[DEBUG LeaveGuild] Iniciando handleProfileLeaveGuild com ID: "${guildMongoId}"`);
+    
+    // Verificação adicional do ID da guilda
+    if (!guildMongoId || guildMongoId === 'undefined') {
+        console.error(`[ERROR LeaveGuild] ID da guilda inválido em handleProfileLeaveGuild: "${guildMongoId}"`);
+        return interaction.reply({
+            content: '❌ Erro ao processar sua solicitação: ID da guilda inválido. Por favor, tente acessar o painel da guilda novamente.',
+            ephemeral: true
+        });
     }
+    
+    try {
+        const guild = await loadGuildById(guildMongoId);
+        if (!guild) {
+            console.log(`[DEBUG LeaveGuild] Guilda não encontrada com ID: "${guildMongoId}"`);
+            return interaction.reply({ content: '❌ A guilda da qual você está tentando sair não foi encontrada. Ela pode ter sido deletada.', ephemeral: true });
+        }
     if (interaction.user.id === guild.leader?.id) {
         return interaction.reply({ content: '❌ Você é o Líder desta guilda! Você não pode sair. Transfira a liderança primeiro usando o `/guilda-painel`.', ephemeral: true });
     }
@@ -36,14 +49,35 @@ async function handleProfileLeaveGuild(interaction, guildMongoId, globalConfig, 
         components: [row],
         ephemeral: true,
     });
+    console.log(`[DEBUG LeaveGuild] Confirmação de saída enviada para guilda: ${guild.name}`);
+} catch (error) {
+    console.error(`[ERROR LeaveGuild] Erro ao processar saída da guilda:`, error);
+    return interaction.reply({
+        content: `❌ Ocorreu um erro ao processar sua solicitação: ${error.message}. Por favor, tente novamente mais tarde.`,
+        ephemeral: true
+    });
+}
 }
 
 async function handleConfirmLeaveGuild(interaction, guildMongoId, globalConfig, client) {
-    await interaction.deferUpdate();
-    const guild = await loadGuildById(guildMongoId);
-    if (!guild) {
-        return interaction.editReply({ content: '❌ A guilda não foi encontrada. Ação cancelada.', components: [] });
+    console.log(`[DEBUG LeaveGuild] Iniciando handleConfirmLeaveGuild com ID: "${guildMongoId}"`);
+    
+    // Verificação adicional do ID da guilda
+    if (!guildMongoId || guildMongoId === 'undefined') {
+        console.error(`[ERROR LeaveGuild] ID da guilda inválido em handleConfirmLeaveGuild: "${guildMongoId}"`);
+        return interaction.reply({
+            content: '❌ Erro ao confirmar sua saída: ID da guilda inválido. Por favor, tente acessar o painel da guilda novamente.',
+            ephemeral: true
+        });
     }
+    
+    try {
+        await interaction.deferUpdate();
+        const guild = await loadGuildById(guildMongoId);
+        if (!guild) {
+            console.log(`[DEBUG LeaveGuild] Guilda não encontrada para confirmação com ID: "${guildMongoId}"`);
+            return interaction.editReply({ content: '❌ A guilda não foi encontrada. Ação cancelada.', components: [] });
+        }
 
     // Remove o usuário dos rosters
     guild.mainRoster = guild.mainRoster.filter(m => m.id !== interaction.user.id);
@@ -83,6 +117,22 @@ async function handleConfirmLeaveGuild(interaction, guildMongoId, globalConfig, 
     const leader = await client.users.fetch(guild.leader.id).catch(() => null);
     if (leader) {
         await leader.send(`ℹ️ O membro **${interaction.user.tag}** saiu voluntariamente da sua guilda, **${guild.name}**.`).catch(e => console.error("Não foi possível enviar DM para o líder.", e.message));
+    }
+    console.log(`[DEBUG LeaveGuild] Saída da guilda ${guild.name} processada com sucesso para ${interaction.user.tag}`);
+    } catch (error) {
+        console.error(`[ERROR LeaveGuild] Erro ao confirmar saída da guilda:`, error);
+        // Verifica se a interação já foi adiada
+        if (interaction.deferred) {
+            return interaction.editReply({
+                content: `❌ Ocorreu um erro ao processar sua saída: ${error.message}. Por favor, tente novamente mais tarde.`,
+                components: []
+            });
+        } else {
+            return interaction.reply({
+                content: `❌ Ocorreu um erro ao processar sua saída: ${error.message}. Por favor, tente novamente mais tarde.`,
+                ephemeral: true
+            });
+        }
     }
 }
 

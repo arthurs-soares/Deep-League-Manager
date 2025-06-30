@@ -58,8 +58,16 @@ function createInitialControlButtons() {
             .setStyle(ButtonStyle.Success)
     );
 
+    const row2 = new ActionRowBuilder();
+    row2.addComponents(
+        new ButtonBuilder()
+            .setCustomId(`war_refresh_buttons`)
+            .setLabel('🔄 Atualizar Botões')
+            .setStyle(ButtonStyle.Secondary)
+    );
+
     const requestDodgeButtonRow = createRequestDodgeButton();
-    return [row1, ...requestDodgeButtonRow];
+    return [row1, row2, ...requestDodgeButtonRow];
 }
 
 /**

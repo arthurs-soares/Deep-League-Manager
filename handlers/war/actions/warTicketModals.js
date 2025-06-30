@@ -153,7 +153,7 @@ async function handleWarTicketModalSubmit(interaction, client, globalConfig, cus
         const warEmbed = new EmbedBuilder()
             .setTitle(`🔥 Solicitação de War/Glad - ${warData.yourEntity.name} vs ${warData.enemyEntity.name}`)
             .setColor(yourEntityResult.data.color ? resolveDisplayColor(yourEntityResult.data.color, globalConfig) : (globalConfig.embedColor || '#FFD700'))
-            .setDescription(`Nova solicitação de confronto criada por ${interaction.user.toString()}.`)
+            .setDescription(`Nova solicitação de confronto criada por ${interaction.user.toString()}.\n\n**Nota:** Os botões do Discord expiram após um tempo. Se os botões pararem de funcionar, use o botão 🔄 **Atualizar Botões** para renová-los.`)
             .addFields(
                 { name: `Sua Entidade (${warData.yourEntity.type})`, value: warData.yourEntity.name, inline: true },
                 { name: `Entidade Inimiga (${warData.enemyEntity.type})`, value: warData.enemyEntity.name, inline: true },

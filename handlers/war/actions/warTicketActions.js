@@ -3,6 +3,7 @@
 const { handleWarAcceptButton } = require('../core/warAcceptHandler');
 const { handleWarRequestDodgeButton, handleWarDodgeSelectGuildSubmit } = require('../core/warDodgeHandler');
 const { handleWarRoundButton } = require('../core/warRoundHandler');
+const { handleWarRefreshButton } = require('../core/warRefreshHandler');
 
 // Re-exporta todos os handlers para que possam ser importados de um único local, mantendo a compatibilidade.
 module.exports = {
@@ -10,4 +11,5 @@ module.exports = {
     handleWarRequestDodgeButton,
     handleWarDodgeSelectGuildSubmit,
     handleWarRoundButton,
+    handleWarRefreshButton,
 };

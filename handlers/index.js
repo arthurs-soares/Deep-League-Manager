@@ -33,6 +33,7 @@ const { handleWarRequestDodgeButton } = require('./war/core/warDodgeHandler');
 const { handleWarDodgeSelectGuildSubmit } = require('./war/core/warDodgeHandler');
 const { handleWarRoundButton } = require('./war/core/warRoundHandler')
 const { handleWarAcceptButton } = require('./war/core/warAcceptHandler');
+const { handleWarRefreshButton } = require('./war/core/warRefreshHandler');
 
 // Importações dos módulos utilitários (handlers/utils)
 const { COLOR_MAP, resolveDisplayColor, COOLDOWN_DAYS, MAX_ROSTER_SIZE } = require('./utils/constants');
@@ -112,6 +113,7 @@ module.exports = {
     handleWarRequestDodgeButton,
     handleWarDodgeSelectGuildSubmit,
     handleWarRoundButton,
+    handleWarRefreshButton,
 
     // Funções Utilitárias
     COLOR_MAP,

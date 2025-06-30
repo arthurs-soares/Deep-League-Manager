@@ -18,13 +18,23 @@ async function handleGuildPanelManagePlayer_SelectUser(interaction, client, glob
 
     console.log(`[DIAGNÓSTICO JOGADOR] handleGuildPanelManagePlayer_SelectUser INICIADO. Ação: ${actionType}, Usuário ID: ${interaction.users.first()?.id}`);
 
-    // Lógica de resposta à interação simplificada para evitar "Interaction already acknowledged"
-    // Para 'move', a resposta será o novo menu. Para outras, será uma mensagem de processamento.
-    // A resposta real (update/editReply) será dada dentro do switch case.
-    // Isso evita responder à interação antes de ter o conteúdo final.
-
-
     try {
+        // Adiar a atualização da interação imediatamente para evitar o erro "InteractionNotReplied"
+        // Exceto para o caso de erro de validação de customId que já foi tratado acima
+        if (actionType !== 'move') {
+            console.log(`[DIAGNÓSTICO JOGADOR] Tentando adiar a atualização da interação para ação ${actionType}...`);
+            try {
+                await interaction.deferUpdate();
+                console.log(`[DIAGNÓSTICO JOGADOR] Interação adiada com sucesso para ação ${actionType}.`);
+            } catch (deferError) {
+                console.error(`[DIAGNÓSTICO JOGADOR] Erro ao adiar interação para ação ${actionType}:`, deferError);
+                // Se falhar em adiar, tentamos responder diretamente
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({ content: "Processando sua solicitação...", ephemeral: true });
+                    console.log(`[DIAGNÓSTICO JOGADOR] Respondido à interação como fallback para ação ${actionType}.`);
+                }
+            }
+        }
         const selectedUserId = interaction.users.first().id;
         const guild = await getAndValidateGuild(guildIdSafe, interaction, globalConfig, client, loadGuildByName, false, true);
         if (!guild) {
@@ -178,12 +188,17 @@ async function handleGuildPanelManagePlayer_SelectUser(interaction, client, glob
             // A interação original do UserSelectMenu foi 'updated' ou 'deferReply'd.
             // Agora usamos editReply (se foi deferido) ou followUp (se o update inicial falhou e não fizemos defer).
             // Para simplificar: se interaction.deferred for true, usar editReply, senão followUp.
-             if (interaction.deferred || (interaction.replied && actionType !== 'move')) { // Se foi deferido, ou se foi "updated" no início
-                await interaction.editReply({ content: replyMessage, components: finalComponents });
-            } else {
-                // Este caso seria se o update inicial falhou E não houve defer. Pouco provável com a lógica atual.
-                await interaction.followUp({ content: replyMessage, flags: MessageFlags.Ephemeral, components: finalComponents });
-            }
+            console.log(`[DIAGNÓSTICO JOGADOR] Verificando estado da interação antes de resposta final: deferred=${interaction.deferred}, replied=${interaction.replied}, actionType=${actionType}`);
+            if (interaction.deferred || (interaction.replied && actionType !== 'move')) { // Se foi deferido, ou se foi "updated" no início
+               console.log(`[DIAGNÓSTICO JOGADOR] Chamando editReply para resposta final...`);
+               await interaction.editReply({ content: replyMessage, components: finalComponents });
+               console.log(`[DIAGNÓSTICO JOGADOR] editReply executado com sucesso.`);
+           } else {
+               // Este caso seria se o update inicial falhou E não houve defer. Pouco provável com a lógica atual.
+               console.log(`[DIAGNÓSTICO JOGADOR] Chamando followUp para resposta final...`);
+               await interaction.followUp({ content: replyMessage, flags: MessageFlags.Ephemeral, components: finalComponents });
+               console.log(`[DIAGNÓSTICO JOGADOR] followUp executado com sucesso.`);
+           }
         }
         console.log(`[DIAGNÓSTICO JOGADOR] handleGuildPanelManagePlayer_SelectUser (ação ${actionType}) concluído para ${member.user.tag}.`);
 
@@ -192,10 +207,15 @@ async function handleGuildPanelManagePlayer_SelectUser(interaction, client, glob
         const errorMessage = `❌ Ocorreu um erro ao processar a ação '${actionType}' para o membro. Detalhes: ${error.message}`;
         try {
             // Tenta editar a resposta se já foi deferida/respondida, caso contrário, tenta um novo reply.
+            console.log(`[DIAGNÓSTICO JOGADOR] Estado da interação no tratamento de erro: deferred=${interaction.deferred}, replied=${interaction.replied}`);
             if (interaction.deferred || interaction.replied) {
+                console.log(`[DIAGNÓSTICO JOGADOR] Tentando editReply no tratamento de erro...`);
                 await interaction.editReply({ content: errorMessage, components: [] });
+                console.log(`[DIAGNÓSTICO JOGADOR] editReply de erro executado com sucesso.`);
             } else {
+                console.log(`[DIAGNÓSTICO JOGADOR] Tentando reply no tratamento de erro...`);
                 await interaction.reply({ content: errorMessage, flags: MessageFlags.Ephemeral, components: [] });
+                console.log(`[DIAGNÓSTICO JOGADOR] reply de erro executado com sucesso.`);
             }
         } catch (e) {
             console.error("Erro ao tentar enviar mensagem de erro ao usuário:", e.message);

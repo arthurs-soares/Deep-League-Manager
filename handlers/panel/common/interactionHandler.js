@@ -238,9 +238,31 @@ async function handleInteraction(interaction, client, globalConfig) {
             // Botões de Sair da Guilda
             else if (customId.startsWith('profile_leave_guild_')) {
                 const guildMongoId = customId.replace('profile_leave_guild_', '');
+                console.log(`[DEBUG LeaveGuild] ID da guilda extraído: "${guildMongoId}"`);
+                
+                // Verifica se o ID da guilda é válido
+                if (!guildMongoId || guildMongoId === 'undefined') {
+                    console.error(`[ERROR LeaveGuild] ID da guilda inválido: "${guildMongoId}"`);
+                    return interaction.reply({
+                        content: '❌ Erro ao processar sua solicitação: ID da guilda inválido. Por favor, tente acessar o painel da guilda novamente.',
+                        ephemeral: true
+                    });
+                }
+                
                 await client.guildPanelHandlers.handleProfileLeaveGuild(interaction, guildMongoId, globalConfig, client);
             } else if (customId.startsWith('confirm_leave_guild_')) {
                 const guildMongoId = customId.replace('confirm_leave_guild_', '');
+                console.log(`[DEBUG LeaveGuild] ID da guilda para confirmação: "${guildMongoId}"`);
+                
+                // Verifica se o ID da guilda é válido
+                if (!guildMongoId || guildMongoId === 'undefined') {
+                    console.error(`[ERROR LeaveGuild] ID da guilda inválido na confirmação: "${guildMongoId}"`);
+                    return interaction.reply({
+                        content: '❌ Erro ao processar sua confirmação: ID da guilda inválido. Por favor, tente acessar o painel da guilda novamente.',
+                        ephemeral: true
+                    });
+                }
+                
                 await client.guildPanelHandlers.handleConfirmLeaveGuild(interaction, guildMongoId, globalConfig, client);
             } else if (customId === 'cancel_leave_guild') {
                  await interaction.update({ content: 'ℹ️ Ação de sair da guilda foi cancelada.', components: [], embeds: [] });

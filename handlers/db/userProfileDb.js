@@ -9,6 +9,16 @@ const defaultProfile = {
     achievements: [],
     guildHistory: [],
     personalScore: { wins: 0, losses: 0 },
+    // Sistema de ELO
+    eloData: {
+        currentElo: 1000,        // ELO atual (iniciando em 1000 - Rank A)
+        peakElo: 1000,          // Maior ELO já alcançado
+        eloHistory: [],         // Histórico de mudanças
+        mvpCount: 0,            // Número total de MVPs
+        flawlessWins: 0,        // Número de vitórias flawless
+        flawlessLosses: 0,      // Número de derrotas flawless
+        lastEloUpdate: null     // Data da última atualização
+    }
 };
 
 /**

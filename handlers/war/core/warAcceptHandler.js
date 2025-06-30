@@ -7,12 +7,20 @@ const { sendLogMessage } = require('../../utils/logManager');
 const { createWarCurrentButtons } = require('../actions/warTicketButtons');
 
 async function handleWarAcceptButton(interaction, client, globalConfig) {
+    console.log(`[DEBUG] handleWarAcceptButton chamado - Timestamp: ${new Date().toISOString()}`);
+    console.log(`[DEBUG] Botão clicado por: ${interaction.user.tag} (${interaction.user.id})`);
+    console.log(`[DEBUG] Mensagem criada em: ${interaction.message.createdAt}`);
+    console.log(`[DEBUG] Tempo desde a criação da mensagem: ${(Date.now() - interaction.message.createdAt) / 1000} segundos`);
+    
     await interaction.deferUpdate();
 
     const threadId = interaction.channel.id;
+    console.log(`[DEBUG] Buscando dados da war para threadId: ${threadId}`);
     const warData = await loadWarTicketByThreadId(threadId);
+    console.log(`[DEBUG] Dados da war encontrados: ${warData ? 'Sim' : 'Não'}, Status: ${warData?.status}`);
 
     if (!warData || warData.status !== 'Aguardando Aceitação') {
+        console.log(`[DEBUG] War não está aguardando aceitação - Status: ${warData?.status}`);
         return interaction.followUp({ content: '❌ Esta war não está aguardando aceitação ou já foi iniciada/concluída.', ephemeral: true });
     }
 
