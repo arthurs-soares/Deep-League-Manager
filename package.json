@@ -15,5 +15,8 @@
     "dotenv": "^16.5.0",
     "humanize-duration": "^3.33.0",
     "mongodb": "^6.17.0"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
   }
 }
