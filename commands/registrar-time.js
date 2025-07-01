@@ -1,13 +1,13 @@
 // commands/registrar-time.js
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags, PermissionFlagsBits } = require('discord.js');
 const { saveTeamData, loadTeamByName, isUserInAnyTeam } = require('../handlers/db/teamDb');
-const { isUserInAnyGuild } = require('../handlers/db/guildDb');
+const { isUserInAnyGuild, findGuildByLeader } = require('../handlers/db/guildDb');
 const { sendLogMessage } = require('../handlers/utils/logManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('registrar-time')
-        .setDescription('Registra um novo time no sistema (Apenas Moderadores).')
+        .setDescription('Registra um novo time no sistema (Moderadores, Membros e Vice-líderes de guildas).')
         .addStringOption(option =>
             option.setName('nome')
                 .setDescription('O nome EXATO do time.')
@@ -20,18 +20,35 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction, client, globalConfig) {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
         // Verificação de permissão
         const isModerator = interaction.member.permissions.has(PermissionFlagsBits.Administrator) ||
                                 (globalConfig.moderatorRoles && globalConfig.moderatorRoles.some(roleId => interaction.member.roles.cache.has(roleId)));
+        
+        // Verifica se o usuário é líder de alguma guilda
+        const userGuildLeadership = await findGuildByLeader(interaction.user.id);
+        const isGuildLeader = userGuildLeadership && userGuildLeadership.leader && userGuildLeadership.leader.id === interaction.user.id;
+        
+        // Verifica se o usuário é membro ou vice-líder de alguma guilda
+        const userGuild = await isUserInAnyGuild(interaction.user.id);
+        const isGuildMemberOrCoLeader = userGuild && (
+            // Verifica se é vice-líder
+            (userGuild.coLeader && userGuild.coLeader.id === interaction.user.id) ||
+            // Verifica se está no roster principal (com verificação de segurança)
+            (Array.isArray(userGuild.mainRoster) && userGuild.mainRoster.some(member => member && member.id === interaction.user.id)) ||
+            // Verifica se está no roster reserva (com verificação de segurança)
+            (Array.isArray(userGuild.subRoster) && userGuild.subRoster.some(member => member && member.id === interaction.user.id))
+        );
 
-        if (!isModerator) {
-            return interaction.reply({
-                content: '❌ Apenas moderadores podem registrar novos times!',
+        // Permite se for moderador OU (membro/vice-líder de guilda E não for líder)
+        if (!isModerator && (!isGuildMemberOrCoLeader || isGuildLeader)) {
+            return interaction.editReply({
+                content: '❌ Apenas moderadores, membros e vice-líderes de guildas podem registrar novos times! Líderes de guildas não têm permissão.',
                 flags: MessageFlags.Ephemeral
             });
         }
 
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const teamName = interaction.options.getString('nome');
         const leader = interaction.options.getUser('lider');
@@ -48,6 +65,13 @@ module.exports = {
             if (userInGuild) {
                 return interaction.editReply({ content: `❌ O usuário ${leader.toString()} já está na guilda "${userInGuild.name}" e não pode liderar um time.` });
             }
+            
+            // Verifica se o usuário é líder de alguma guilda
+            const isGuildLeader = await findGuildByLeader(leader.id);
+            if (isGuildLeader) {
+                return interaction.editReply({ content: `❌ O usuário ${leader.toString()} é líder da guilda "${isGuildLeader.name}" e não pode liderar um time.` });
+            }
+            
             const userInTeam = await isUserInAnyTeam(leader.id);
             if (userInTeam) {
                 return interaction.editReply({ content: `❌ O usuário ${leader.toString()} já está no time "${userInTeam.name}" e não pode liderar outro.` });
