@@ -129,16 +129,64 @@ async function processMatchResult(matchData, operatorId) {
             errors: []
         };
 
-        // Processar time vencedor
+        // Carregar ELOs atuais dos jogadores de ambos os times
+        const winnerPlayersWithElo = [];
+        const loserPlayersWithElo = [];
+        
+        // Carregar ELOs do time vencedor
         if (matchData.winnerPlayers && matchData.winnerPlayers.length > 0) {
+            for (const player of matchData.winnerPlayers) {
+                try {
+                    const userProfile = await loadUserProfile(player.userId);
+                    const currentElo = userProfile.eloData?.currentElo || ELO_CONFIG.STARTING_ELO;
+                    
+                    winnerPlayersWithElo.push({
+                        userId: player.userId,
+                        currentElo: currentElo
+                    });
+                } catch (error) {
+                    results.errors.push(`Erro ao carregar ELO de ${player.userId}: ${error.message}`);
+                }
+            }
+        }
+        
+        // Carregar ELOs do time perdedor
+        if (matchData.loserPlayers && matchData.loserPlayers.length > 0) {
+            for (const player of matchData.loserPlayers) {
+                try {
+                    const userProfile = await loadUserProfile(player.userId);
+                    const currentElo = userProfile.eloData?.currentElo || ELO_CONFIG.STARTING_ELO;
+                    
+                    loserPlayersWithElo.push({
+                        userId: player.userId,
+                        currentElo: currentElo
+                    });
+                } catch (error) {
+                    results.errors.push(`Erro ao carregar ELO de ${player.userId}: ${error.message}`);
+                }
+            }
+        }
+        
+        // Calcular ELO médio de cada time
+        const winnerTeamAvgElo = winnerPlayersWithElo.length > 0
+            ? winnerPlayersWithElo.reduce((sum, player) => sum + player.currentElo, 0) / winnerPlayersWithElo.length
+            : null;
+            
+        const loserTeamAvgElo = loserPlayersWithElo.length > 0
+            ? loserPlayersWithElo.reduce((sum, player) => sum + player.currentElo, 0) / loserPlayersWithElo.length
+            : null;
+
+        // Processar time vencedor
+        if (winnerPlayersWithElo.length > 0) {
             const winnerResults = await processTeamElo({
-                players: matchData.winnerPlayers,
+                players: winnerPlayersWithElo,
                 mvpUserId: matchData.winnerMvp,
                 isWinnerTeam: true,
                 matchResult: matchData.result,
                 guildName: matchData.winnerTeam,
                 matchId: results.matchId,
-                operatorId: operatorId
+                operatorId: operatorId,
+                opponentTeamAvgElo: loserTeamAvgElo // Passar ELO médio do time oponente
             });
             
             results.updates.push(...winnerResults.updates);
@@ -146,15 +194,16 @@ async function processMatchResult(matchData, operatorId) {
         }
 
         // Processar time perdedor
-        if (matchData.loserPlayers && matchData.loserPlayers.length > 0) {
+        if (loserPlayersWithElo.length > 0) {
             const loserResults = await processTeamElo({
-                players: matchData.loserPlayers,
+                players: loserPlayersWithElo,
                 mvpUserId: matchData.loserMvp,
                 isWinnerTeam: false,
                 matchResult: matchData.result,
                 guildName: matchData.loserTeam,
                 matchId: results.matchId,
-                operatorId: operatorId
+                operatorId: operatorId,
+                opponentTeamAvgElo: winnerTeamAvgElo // Passar ELO médio do time oponente
             });
             
             results.updates.push(...loserResults.updates);
@@ -180,7 +229,7 @@ async function processMatchResult(matchData, operatorId) {
  * @param {Object} teamData - Dados do time
  * @returns {Promise<Object>} Resultado do processamento
  */
-async function processTeamElo({ players, mvpUserId, isWinnerTeam, matchResult, guildName, matchId, operatorId, specificPlayerIds = null }) {
+async function processTeamElo({ players, mvpUserId, isWinnerTeam, matchResult, guildName, matchId, operatorId, specificPlayerIds = null, opponentTeamAvgElo = null }) {
     const results = {
         updates: [],
         errors: []
@@ -213,7 +262,8 @@ async function processTeamElo({ players, mvpUserId, isWinnerTeam, matchResult, g
             players: playersWithElo,
             mvpUserId: mvpUserId,
             isWinnerTeam: isWinnerTeam,
-            matchResult: matchResult
+            matchResult: matchResult,
+            opponentTeamAvgElo: opponentTeamAvgElo // Passar ELO médio do time oponente
         });
 
         // Aplicar mudanças individuais

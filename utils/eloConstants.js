@@ -2,6 +2,25 @@
 // Constantes e configurações para o sistema de ELO
 
 /**
+ * Multiplicadores para diferença de ranks
+ * Aplicados quando jogadores de ranks muito diferentes se enfrentam
+ */
+const RANK_DIFFERENCE_MULTIPLIERS = {
+    // Quando um jogador de rank muito superior perde para um de rank inferior
+    UPSET_LOSS: {
+        EXTREME: 1.5,    // Ex: Grandmaster perdendo para Rank D (4+ ranks de diferença)
+        MAJOR: 1.3,      // Ex: Rank A+ perdendo para Rank C (3 ranks de diferença)
+        MODERATE: 1.15   // Ex: Rank A perdendo para Rank D (2 ranks de diferença)
+    },
+    // Quando um jogador de rank inferior vence um de rank muito superior
+    UPSET_WIN: {
+        EXTREME: 1.5,    // Ex: Rank D vencendo Grandmaster (4+ ranks de diferença)
+        MAJOR: 1.3,      // Ex: Rank C vencendo Rank A+ (3 ranks de diferença)
+        MODERATE: 1.15   // Ex: Rank D vencendo Rank A (2 ranks de diferença)
+    }
+};
+
+/**
  * Definição dos ranks baseados no ELO
  */
 const ELO_RANKS = {
@@ -104,7 +123,7 @@ const ELO_BASE_VALUES = {
  * Configurações gerais do sistema
  */
 const ELO_CONFIG = {
-    STARTING_ELO: 1000,
+    STARTING_ELO: 800,
     MIN_ELO: 0,
     MAX_ELO: 3000,
     COOLDOWN_HOURS: 0, // Desabilitado - sem cooldown
@@ -152,5 +171,6 @@ module.exports = {
     ELO_BASE_VALUES,
     ELO_CONFIG,
     ELO_CHANGE_REASONS,
-    MATCH_RESULTS
+    MATCH_RESULTS,
+    RANK_DIFFERENCE_MULTIPLIERS
 };

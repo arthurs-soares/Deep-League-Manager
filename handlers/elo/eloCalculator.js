@@ -1,13 +1,67 @@
 // handlers/elo/eloCalculator.js
 // Calculadora principal do sistema ELO
 
-const { 
-    ELO_BASE_VALUES, 
-    ELO_MULTIPLIERS, 
-    ELO_CONFIG, 
+const {
+    ELO_BASE_VALUES,
+    ELO_MULTIPLIERS,
+    ELO_CONFIG,
     ELO_CHANGE_REASONS,
-    MATCH_RESULTS 
+    MATCH_RESULTS,
+    RANK_DIFFERENCE_MULTIPLIERS,
+    ELO_RANKS
 } = require('../../utils/eloConstants');
+const { getEloRank } = require('../elo/eloRanks');
+
+/**
+ * Calcula o multiplicador baseado na diferença de ranks entre os jogadores
+ * @param {number} playerElo - ELO do jogador
+ * @param {number} opponentElo - ELO do oponente
+ * @param {boolean} isWinner - Se o jogador é o vencedor
+ * @returns {number} Multiplicador baseado na diferença de ranks
+ */
+function getRankDifferenceMultiplier(playerElo, opponentElo, isWinner) {
+    // Se não temos o ELO do oponente, retornar 1.0 (sem modificação)
+    if (!opponentElo) return 1.0;
+    
+    // Obter os ranks dos jogadores
+    const playerRank = getEloRank(playerElo);
+    const opponentRank = getEloRank(opponentElo);
+    
+    // Obter os índices dos ranks (0 = Rank D, 1 = Rank C, etc.)
+    const rankOrder = Object.keys(ELO_RANKS);
+    const playerRankIndex = rankOrder.indexOf(playerRank.key);
+    const opponentRankIndex = rankOrder.indexOf(opponentRank.key);
+    
+    // Calcular a diferença de ranks
+    const rankDifference = Math.abs(playerRankIndex - opponentRankIndex);
+    
+    // Se a diferença for menor que 2, não aplicar multiplicador adicional
+    if (rankDifference < 2) return 1.0;
+    
+    // Determinar o tipo de multiplicador baseado na situação
+    if (isWinner && playerRankIndex < opponentRankIndex) {
+        // Jogador de rank inferior venceu um de rank superior (upset win)
+        if (rankDifference >= 4) {
+            return RANK_DIFFERENCE_MULTIPLIERS.UPSET_WIN.EXTREME;
+        } else if (rankDifference >= 3) {
+            return RANK_DIFFERENCE_MULTIPLIERS.UPSET_WIN.MAJOR;
+        } else if (rankDifference >= 2) {
+            return RANK_DIFFERENCE_MULTIPLIERS.UPSET_WIN.MODERATE;
+        }
+    } else if (!isWinner && playerRankIndex > opponentRankIndex) {
+        // Jogador de rank superior perdeu para um de rank inferior (upset loss)
+        if (rankDifference >= 4) {
+            return RANK_DIFFERENCE_MULTIPLIERS.UPSET_LOSS.EXTREME;
+        } else if (rankDifference >= 3) {
+            return RANK_DIFFERENCE_MULTIPLIERS.UPSET_LOSS.MAJOR;
+        } else if (rankDifference >= 2) {
+            return RANK_DIFFERENCE_MULTIPLIERS.UPSET_LOSS.MODERATE;
+        }
+    }
+    
+    // Caso padrão, sem modificação
+    return 1.0;
+}
 
 /**
  * Calcula a mudança de ELO para um jogador baseado no resultado da partida
@@ -16,9 +70,11 @@ const {
  * @param {boolean} params.isWinner - Se o jogador está no time vencedor
  * @param {boolean} params.isMvp - Se o jogador foi MVP
  * @param {string} params.matchResult - Resultado da partida (2-0, 2-1, 1-2, 0-2)
+ * @param {boolean} params.isWager - Se é um wager (1v1)
+ * @param {number} params.opponentElo - ELO do oponente (opcional)
  * @returns {Object} Objeto com mudança de ELO e informações
  */
-function calculateEloChange({ currentElo, isWinner, isMvp, matchResult, isWager = false }) {
+function calculateEloChange({ currentElo, isWinner, isMvp, matchResult, isWager = false, opponentElo = null }) {
     // Validar parâmetros
     if (typeof currentElo !== 'number' || currentElo < 0) {
         throw new Error('ELO atual deve ser um número válido e não negativo');
@@ -41,8 +97,16 @@ function calculateEloChange({ currentElo, isWinner, isMvp, matchResult, isWager 
     const eloChange = getRandomInRange(baseValues.min, baseValues.max);
     
     // Aplicar multiplicador baseado no ELO atual
-    const multiplier = getEloMultiplier(currentElo, isWinner);
-    const finalEloChange = Math.round(eloChange * multiplier);
+    const baseMultiplier = getEloMultiplier(currentElo, isWinner);
+    
+    // Aplicar multiplicador baseado na diferença de ranks (se opponentElo for fornecido)
+    const rankDiffMultiplier = getRankDifferenceMultiplier(currentElo, opponentElo, isWinner);
+    
+    // Multiplicador final é o produto dos dois multiplicadores
+    const finalMultiplier = baseMultiplier * rankDiffMultiplier;
+    
+    // Aplicar multiplicador ao ELO base
+    const finalEloChange = Math.round(eloChange * finalMultiplier);
     
     // Calcular novo ELO com limites
     const newElo = Math.max(ELO_CONFIG.MIN_ELO, 
@@ -57,7 +121,9 @@ function calculateEloChange({ currentElo, isWinner, isMvp, matchResult, isWager 
         newElo: newElo,
         reason: reason,
         matchResult: matchResult,
-        multiplier: multiplier,
+        multiplier: finalMultiplier,
+        baseMultiplier: baseMultiplier,
+        rankDiffMultiplier: rankDiffMultiplier,
         baseRange: baseValues,
         details: {
             isWinner,
@@ -170,10 +236,13 @@ function getChangeReason(isWinner, isMvp, isFlawless, isWager = false) {
  * @param {string} params.matchResult - Resultado da partida
  * @returns {Array} Array com mudanças para cada jogador
  */
-function calculateTeamEloChanges({ players, mvpUserId, isWinnerTeam, matchResult }) {
+function calculateTeamEloChanges({ players, mvpUserId, isWinnerTeam, matchResult, opponentTeamAvgElo = null }) {
     if (!Array.isArray(players) || players.length === 0) {
         throw new Error('Lista de jogadores inválida');
     }
+
+    // Calcular ELO médio do time atual
+    const teamAvgElo = players.reduce((sum, player) => sum + player.currentElo, 0) / players.length;
 
     return players.map(player => {
         const isMvp = player.userId === mvpUserId;
@@ -184,7 +253,8 @@ function calculateTeamEloChanges({ players, mvpUserId, isWinnerTeam, matchResult
                 currentElo: player.currentElo,
                 isWinner: isWinnerTeam,
                 isMvp: isMvp,
-                matchResult: matchResult
+                matchResult: matchResult,
+                opponentElo: opponentTeamAvgElo // Usar ELO médio do time oponente
             })
         };
     });
@@ -246,7 +316,8 @@ function calculateWagerEloChanges({ winnerElo, loserElo, isWipe }) {
         isWinner: true,
         isMvp: false, // Não há MVP em wagers
         matchResult: isWipe ? MATCH_RESULTS.WAGER_WIPE_WIN : MATCH_RESULTS.WAGER_WIN,
-        isWager: true
+        isWager: true,
+        opponentElo: loserElo // Passar ELO do oponente
     });
     
     const loserChange = calculateEloChange({
@@ -254,7 +325,8 @@ function calculateWagerEloChanges({ winnerElo, loserElo, isWipe }) {
         isWinner: false,
         isMvp: false,
         matchResult: isWipe ? MATCH_RESULTS.WAGER_WIPE_LOSS : MATCH_RESULTS.WAGER_LOSS,
-        isWager: true
+        isWager: true,
+        opponentElo: winnerElo // Passar ELO do oponente
     });
     
     return { winnerChange, loserChange };
@@ -267,5 +339,6 @@ module.exports = {
     formatEloChange,
     validateEloCooldown,
     getBaseEloValues,
-    getEloMultiplier
+    getEloMultiplier,
+    getRankDifferenceMultiplier
 };
