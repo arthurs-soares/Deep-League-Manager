@@ -1,5 +1,6 @@
 // handlers/db/userProfileDb.js
 const { getDatabaseInstance } = require('../../utils/database');
+const { ELO_CONFIG } = require('../../utils/eloConstants');
 
 // Estrutura padrão de um perfil de usuário
 const defaultProfile = {
@@ -11,13 +12,13 @@ const defaultProfile = {
     personalScore: { wins: 0, losses: 0 },
     // Sistema de ELO
     eloData: {
-        currentElo: 1000,        // ELO atual (iniciando em 1000 - Rank A)
-        peakElo: 1000,          // Maior ELO já alcançado
-        eloHistory: [],         // Histórico de mudanças
-        mvpCount: 0,            // Número total de MVPs
-        flawlessWins: 0,        // Número de vitórias flawless
-        flawlessLosses: 0,      // Número de derrotas flawless
-        lastEloUpdate: null     // Data da última atualização
+        currentElo: ELO_CONFIG.STARTING_ELO,  // ELO atual (usando valor da constante)
+        peakElo: ELO_CONFIG.STARTING_ELO,     // Maior ELO já alcançado
+        eloHistory: [],                       // Histórico de mudanças
+        mvpCount: 0,                          // Número total de MVPs
+        flawlessWins: 0,                      // Número de vitórias flawless
+        flawlessLosses: 0,                    // Número de derrotas flawless
+        lastEloUpdate: null                   // Data da última atualização
     }
 };
 

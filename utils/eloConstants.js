@@ -123,7 +123,7 @@ const ELO_BASE_VALUES = {
  * Configurações gerais do sistema
  */
 const ELO_CONFIG = {
-    STARTING_ELO: 800,
+    STARTING_ELO: 800,  // Atualizado para 1000 para corresponder ao defaultProfile
     MIN_ELO: 0,
     MAX_ELO: 3000,
     COOLDOWN_HOURS: 0, // Desabilitado - sem cooldown

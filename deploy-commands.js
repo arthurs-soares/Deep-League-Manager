@@ -50,8 +50,9 @@ async function deployCommands() {
     try {
         const CLIENT_ID = process.env.CLIENT_ID;
         const GUILD_ID = process.env.GUILD_ID;
-        const deployGlobal = process.argv.includes('--global');
-        const cleanOnly = process.argv.includes('--clean'); // Novo argumento para limpeza
+        // Removida a opção de deploy global - apenas deploy por servidor será permitido
+        const cleanOnly = process.argv.includes('--clean'); // Argumento para limpeza
+        const cleanGlobal = process.argv.includes('--clean-global'); // Novo argumento para limpar comandos globais
 
         if (!CLIENT_ID) {
             throw new Error('CLIENT_ID não definido no .env. Impossível prosseguir.');
@@ -75,27 +76,25 @@ async function deployCommands() {
             return; // Sair após a limpeza
         }
 
-        // --- ETAPA DE DEPLOY ---
-        if (deployGlobal) {
-            console.log(`🌍 Fazendo deploy GLOBAL de ${commands.length} comando(s)...`);
-            const data = await rest.put(
-                Routes.applicationCommands(CLIENT_ID),
-                { body: commands }
-            );
-            console.log(`✅ ${data.length} comando(s) registrados GLOBALMENTE!`);
-            console.log('⏰ Comandos globais podem demorar até 1 hora para aparecer.');
-        } else {
-            if (!GUILD_ID) {
-                throw new Error('GUILD_ID não definido no .env para deploy em servidor. Adicione GUILD_ID ou use --global para deploy global.');
-            }
-            console.log(`📍 Fazendo deploy para o SERVIDOR ${GUILD_ID} de ${commands.length} comando(s)...`);
-            const data = await rest.put(
-                Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-                { body: commands }
-            );
-            console.log(`✅ ${data.length} comando(s) registrados no SERVIDOR com sucesso!`);
+        // --- ETAPA DE LIMPEZA DE COMANDOS GLOBAIS ---
+        if (cleanGlobal) {
+            console.log(`🧹 Limpando comandos globais... (Isso pode demorar)`);
+            await rest.put(Routes.applicationCommands(CLIENT_ID), { body: [] });
+            console.log(`✅ Comandos globais limpos com sucesso. Pode levar até 1 hora para sumirem do Discord.`);
+            console.log(`🎉 Limpeza de comandos globais concluída.`);
+            return; // Sair após a limpeza
         }
 
+        // --- ETAPA DE DEPLOY (APENAS PARA SERVIDOR) ---
+        if (!GUILD_ID) {
+            throw new Error('GUILD_ID não definido no .env para deploy em servidor. Adicione GUILD_ID no arquivo .env.');
+        }
+        console.log(`📍 Fazendo deploy para o SERVIDOR ${GUILD_ID} de ${commands.length} comando(s)...`);
+        const data = await rest.put(
+            Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+            { body: commands }
+        );
+        console.log(`✅ ${data.length} comando(s) registrados no SERVIDOR com sucesso!`);
         console.log('🎉 Deploy concluído com sucesso!');
 
     } catch (error) {

@@ -30,16 +30,26 @@ module.exports = {
             option.setName('pagina')
                 .setDescription('Página do ranking')
                 .setRequired(false)
-                .setMinValue(1)),
+                .setMinValue(1))
+        .addBooleanOption(option =>
+            option.setName('compacto')
+                .setDescription('Exibir ranking em formato compacto')
+                .setRequired(false))
+        .addBooleanOption(option =>
+            option.setName('estatisticas')
+                .setDescription('Exibir estatísticas gerais')
+                .setRequired(false)),
 
     async execute(interaction, client, globalConfig) {
         await interaction.deferReply();
 
         try {
             const rankFilter = interaction.options.getString('rank');
-            const limite = interaction.options.getInteger('limite') || 15;
+            const limite = interaction.options.getInteger('limite') || 10; // Reduzido para 10 por padrão
             const pagina = interaction.options.getInteger('pagina') || 1;
             const offset = (pagina - 1) * limite;
+            const modoCompacto = interaction.options.getBoolean('compacto') ?? true; // Compacto por padrão
+            const mostrarEstatisticas = interaction.options.getBoolean('estatisticas') ?? false; // Não mostrar estatísticas por padrão
 
             // Construir query para buscar jogadores com ELO
             const db = getDatabaseInstance();
@@ -85,15 +95,22 @@ module.exports = {
             }
 
             // Criar embed do ranking
-            const embed = await createRankingEmbed(players, interaction.guild, {
+            const rankingEmbed = await createRankingEmbed(players, interaction.guild, {
                 rankFilter: rankFilter,
                 pagina: pagina,
                 limite: limite,
                 totalPlayers: totalPlayers,
-                offset: offset
+                offset: offset,
+                modoCompacto: modoCompacto
             });
 
-            await interaction.editReply({ embeds: [embed] });
+            // Se as estatísticas estiverem habilitadas, criar um embed adicional
+            if (mostrarEstatisticas && !rankFilter && pagina === 1) {
+                const statsEmbed = await createStatsEmbed(rankFilter);
+                await interaction.editReply({ embeds: [rankingEmbed, statsEmbed] });
+            } else {
+                await interaction.editReply({ embeds: [rankingEmbed] });
+            }
 
         } catch (error) {
             console.error('Erro no comando ranking-elo:', error);
@@ -109,7 +126,7 @@ module.exports = {
 };
 
 async function createRankingEmbed(players, guild, options) {
-    const { rankFilter, pagina, limite, totalPlayers, offset } = options;
+    const { rankFilter, pagina, limite, totalPlayers, offset, modoCompacto } = options;
     
     let title = '🏆 Ranking ELO';
     let color = '#FFD700';
@@ -117,7 +134,7 @@ async function createRankingEmbed(players, guild, options) {
     if (rankFilter) {
         const rankNames = {
             'RANK_D': 'Rank D',
-            'RANK_C': 'Rank C', 
+            'RANK_C': 'Rank C',
             'RANK_B': 'Rank B',
             'RANK_A': 'Rank A',
             'RANK_A_PLUS': 'Rank A+',
@@ -128,7 +145,7 @@ async function createRankingEmbed(players, guild, options) {
         // Cores específicas por rank
         const rankColors = {
             'RANK_D': '#8B4513',
-            'RANK_C': '#CD7F32', 
+            'RANK_C': '#CD7F32',
             'RANK_B': '#C0C0C0',
             'RANK_A': '#FFD700',
             'RANK_A_PLUS': '#E5E4E2',
@@ -136,29 +153,17 @@ async function createRankingEmbed(players, guild, options) {
         };
         color = rankColors[rankFilter] || '#FFD700';
     }
-
-    const embed = new EmbedBuilder()
+    
+    // Embed principal com o ranking
+    const rankingEmbed = new EmbedBuilder()
         .setColor(color)
         .setTitle(title)
         .setTimestamp();
 
     // Descrição com informações de paginação
     const totalPages = Math.ceil(totalPlayers / limite);
-    let description = `**Página ${pagina} de ${totalPages}** | **Total: ${totalPlayers} jogadores**\n\n`;
-
-    // Estatísticas gerais se não houver filtro de rank
-    if (!rankFilter && pagina === 1) {
-        const stats = await getRankingStats();
-        description += `📈 **Estatísticas Gerais:**\n`;
-        description += `🔸 **Rank D:** ${stats.rankD}\n`;
-        description += `🥉 **Rank C:** ${stats.rankC}\n`;
-        description += `🥈 **Rank B:** ${stats.rankB}\n`;
-        description += `🥇 **Rank A:** ${stats.rankA}\n`;
-        description += `💎 **Rank A+:** ${stats.rankAPlus}\n`;
-        description += `👑 **Grandmaster:** ${stats.grandmaster}\n\n`;
-    }
-
-    embed.setDescription(description);
+    let description = `**Página ${pagina} de ${totalPages}** | **Total: ${totalPlayers} jogadores**\n`;
+    rankingEmbed.setDescription(description);
 
     // Lista dos jogadores
     let rankingText = '';
@@ -185,22 +190,39 @@ async function createRankingEmbed(players, guild, options) {
         else if (position === 3) medal = '🥉';
         else medal = `**${position}.**`;
 
-        rankingText += `${medal} ${rank.emoji} **${displayName}**\n`;
-        rankingText += `   ${currentElo} ELO`;
-        
-        // Adicionar informações extras
-        if (player.eloData.mvpCount > 0) {
-            rankingText += ` | 👑 ${player.eloData.mvpCount} MVPs`;
+        if (modoCompacto) {
+            // Formato compacto: tudo em uma linha
+            let playerInfo = `${medal} ${rank.emoji} **${displayName}** • ${currentElo} ELO`;
+            
+            // Adicionar informações extras de forma compacta
+            if (player.eloData.mvpCount > 0) {
+                playerInfo += ` • 👑${player.eloData.mvpCount}`;
+            }
+            
+            if (player.eloData.peakElo > currentElo) {
+                playerInfo += ` • 📈${player.eloData.peakElo}`;
+            }
+            
+            rankingText += `${playerInfo}\n`;
+        } else {
+            // Formato original (mais detalhado)
+            rankingText += `${medal} ${rank.emoji} **${displayName}**\n`;
+            rankingText += `   ${currentElo} ELO`;
+            
+            // Adicionar informações extras
+            if (player.eloData.mvpCount > 0) {
+                rankingText += ` | 👑 ${player.eloData.mvpCount} MVPs`;
+            }
+            
+            if (player.eloData.peakElo > currentElo) {
+                rankingText += ` | 📈 Peak: ${player.eloData.peakElo}`;
+            }
+            
+            rankingText += '\n\n';
         }
-        
-        if (player.eloData.peakElo > currentElo) {
-            rankingText += ` | 📈 Peak: ${player.eloData.peakElo}`;
-        }
-        
-        rankingText += '\n\n';
     }
 
-    embed.addFields({
+    rankingEmbed.addFields({
         name: '📋 Ranking',
         value: rankingText || 'Nenhum jogador encontrado',
         inline: false
@@ -216,10 +238,32 @@ async function createRankingEmbed(players, guild, options) {
     }
     
     if (footerText) {
-        embed.setFooter({ text: footerText });
+        rankingEmbed.setFooter({ text: footerText });
     }
 
-    return embed;
+    return rankingEmbed;
+}
+
+/**
+ * Cria um embed com estatísticas gerais de distribuição de ranks
+ */
+async function createStatsEmbed(rankFilter) {
+    const stats = await getRankingStats();
+    const statsEmbed = new EmbedBuilder()
+        .setColor('#4169E1')  // Cor azul royal para diferenciar do embed principal
+        .setTitle('📊 Estatísticas de Ranking')
+        .setDescription('Distribuição de jogadores por rank')
+        .addFields(
+            { name: '🔸 Rank D', value: `${stats.rankD} jogadores`, inline: true },
+            { name: '🥉 Rank C', value: `${stats.rankC} jogadores`, inline: true },
+            { name: '🥈 Rank B', value: `${stats.rankB} jogadores`, inline: true },
+            { name: '🥇 Rank A', value: `${stats.rankA} jogadores`, inline: true },
+            { name: '💎 Rank A+', value: `${stats.rankAPlus} jogadores`, inline: true },
+            { name: '👑 Grandmaster', value: `${stats.grandmaster} jogadores`, inline: true }
+        )
+        .setTimestamp();
+    
+    return statsEmbed;
 }
 
 async function getRankingStats() {
