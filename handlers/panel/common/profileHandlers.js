@@ -1,23 +1,32 @@
-// commands/elo-stats.js
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { loadUserProfile } = require('../handlers/db/userProfileDb');
-const { getEloRank, generateProgressBar, getNextRank } = require('../handlers/elo/eloRanks');
-const { validateUserForElo } = require('../handlers/elo/eloValidation');
-const { ELO_CONFIG } = require('../utils/eloConstants');
+const { EmbedBuilder } = require('discord.js');
+const { loadUserProfile } = require('../../db/userProfileDb');
+const { getEloRank, generateProgressBar, getNextRank } = require('../../elo/eloRanks');
+const { validateUserForElo } = require('../../elo/eloValidation');
+const { ELO_CONFIG } = require('../../../utils/eloConstants');
 
-module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('elo-stats')
-        .setDescription('Ver estatísticas detalhadas de ELO de um jogador')
-        .addUserOption(option =>
-            option.setName('usuario')
-                .setDescription('Usuário para ver estatísticas (deixe vazio para ver o seu)')
-                .setRequired(false)),
+/**
+ * Handler para o botão "Ver stats" no perfil
+ * Este handler executa o comando /elo-stats para o usuário
+ * @param {Interaction} interaction - A interação do botão
+ * @param {string} userId - ID do usuário para ver as estatísticas
+ * @param {Object} globalConfig - Configurações globais
+ * @param {Client} client - Cliente do Discord
+ */
+async function handleProfileViewEloStats(interaction, userId, globalConfig, client) {
+    await interaction.deferReply();
 
-    async execute(interaction, client, globalConfig) {
-        await interaction.deferReply();
-
-        const targetUser = interaction.options.getUser('usuario') || interaction.user;
+    try {
+        // Buscar o usuário pelo ID
+        const targetUser = await client.users.fetch(userId);
+        if (!targetUser) {
+            return interaction.editReply({
+                embeds: [new EmbedBuilder()
+                    .setColor('#FF0000')
+                    .setTitle('❌ Usuário não encontrado')
+                    .setDescription('Não foi possível encontrar o usuário.')
+                    .setTimestamp()]
+            });
+        }
 
         // Validar usuário
         const userValidation = validateUserForElo(targetUser, interaction.guild);
@@ -31,37 +40,40 @@ module.exports = {
             });
         }
 
-        try {
-            const userProfile = await loadUserProfile(targetUser.id);
-            const targetMember = await interaction.guild.members.fetch(targetUser.id);
+        // Buscar o perfil do usuário
+        const userProfile = await loadUserProfile(userId);
+        const targetMember = await interaction.guild.members.fetch(userId);
 
-            // Verificar se tem dados de ELO
-            if (!userProfile.eloData || userProfile.eloData.currentElo === undefined) {
-                return interaction.editReply({
-                    embeds: [new EmbedBuilder()
-                        .setColor('#FFA500')
-                        .setTitle('📊 Estatísticas de ELO')
-                        .setDescription(`**${targetMember.displayName}** ainda não possui dados de ELO.`)
-                        .setTimestamp()]
-                });
-            }
-
-            const embed = await createStatsEmbed(userProfile, targetMember, globalConfig);
-            await interaction.editReply({ embeds: [embed] });
-
-        } catch (error) {
-            console.error('Erro no comando elo-stats:', error);
-            await interaction.editReply({
+        // Verificar se tem dados de ELO
+        if (!userProfile.eloData || userProfile.eloData.currentElo === undefined) {
+            return interaction.editReply({
                 embeds: [new EmbedBuilder()
-                    .setColor('#FF0000')
-                    .setTitle('❌ Erro')
-                    .setDescription('Ocorreu um erro ao buscar as estatísticas. Tente novamente.')
+                    .setColor('#FFA500')
+                    .setTitle('📊 Estatísticas de ELO')
+                    .setDescription(`**${targetMember.displayName}** ainda não possui dados de ELO.`)
                     .setTimestamp()]
             });
         }
-    },
-};
 
+        // Criar embed de estatísticas
+        const embed = await createStatsEmbed(userProfile, targetMember, globalConfig);
+        await interaction.editReply({ embeds: [embed] });
+    } catch (error) {
+        console.error('Erro ao processar botão de estatísticas de ELO:', error);
+        await interaction.editReply({
+            embeds: [new EmbedBuilder()
+                .setColor('#FF0000')
+                .setTitle('❌ Erro')
+                .setDescription('Ocorreu um erro ao buscar as estatísticas. Tente novamente.')
+                .setTimestamp()]
+        });
+    }
+}
+
+/**
+ * Cria o embed de estatísticas de ELO
+ * Esta função é uma cópia exata da função em commands/elo-stats.js
+ */
 async function createStatsEmbed(userProfile, member, globalConfig) {
     const eloData = userProfile.eloData;
     const currentRank = getEloRank(eloData.currentElo);
@@ -211,3 +223,7 @@ async function createStatsEmbed(userProfile, member, globalConfig) {
 
     return embed;
 }
+
+module.exports = {
+    handleProfileViewEloStats
+}; 

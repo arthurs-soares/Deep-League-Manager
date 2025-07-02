@@ -54,6 +54,7 @@ const boostHandler = require('./events/boostHandler');
 
 // Handler do perfil de usuário
 const { loadUserProfile, saveUserProfile } = require('./db/userProfileDb');
+const { handleProfileViewEloStats } = require('./panel/common/profileHandlers');
 
 // Importa o handler de times
 const { loadTeamByName, loadAllTeams, saveTeamData, deleteTeamByName, isUserInAnyTeam } = require('./db/teamDb');
@@ -126,6 +127,9 @@ module.exports = {
     cleanUpLeadershipRoles,
     getAndValidateGuild,
     autocompleteGuilds, // Exportando autocomplete helper
+    
+    // Handlers de Perfil
+    handleProfileViewEloStats,
 
     // Gerenciamento de Posts de Fórum
     manageGuildForumPost,

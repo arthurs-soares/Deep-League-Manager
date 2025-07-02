@@ -23,7 +23,9 @@ function capitalize(str) {
 // A função handler será chamada com (interaction, client, globalConfig, ...argsExtraidosDoCustomId)
 
 const buttonHandlers = new Map([
-    // Botões de siar da guilda
+    // Botões de perfil
+    ['profile_view_elo_stats_', 'handleProfileViewEloStats'],
+    // Botões de sair da guilda
     ['profile_leave_guild_', 'handleProfileLeaveGuild'], 
     ['confirm_leave_guild_', 'handleConfirmLeaveGuild'], 
     // War Ticket Buttons
@@ -313,7 +315,12 @@ async function handleInteraction(interaction, client, globalConfig) {
                 // Call the exported openGuildPanel function directly
                 await openGuildPanel(interaction, targetGuild, isModerator, globalConfig, client);
 
-            } else if (customId.startsWith('profile_team_panel_')) {
+            }             else if (customId.startsWith('profile_view_elo_stats_')) {
+                const userId = customId.replace('profile_view_elo_stats_', '');
+                console.log(`[DEBUG ProfileHandler] Executando stats para usuário: ${userId}`);
+                await client.guildPanelHandlers.handleProfileViewEloStats(interaction, userId, globalConfig, client);
+            }
+            else if (customId.startsWith('profile_team_panel_')) {
                 const teamName = customId.replace('profile_team_panel_', '');
                 const timePainelCommand = client.commands.get('time-painel');
                 if (timePainelCommand) {

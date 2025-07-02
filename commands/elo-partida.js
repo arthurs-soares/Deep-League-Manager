@@ -1,4 +1,4 @@
- // commands/elo-partida.js
+// commands/elo-partida.js
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { loadUserProfile } = require('../handlers/db/userProfileDb');
 const { loadGuildByName } = require('../handlers/db/guildDb');
@@ -65,10 +65,6 @@ module.exports = {
                 .addUserOption(option =>
                     option.setName('perdedor')
                         .setDescription('Jogador perdedor')
-                        .setRequired(true))
-                .addBooleanOption(option =>
-                    option.setName('wipe')
-                        .setDescription('Foi um wipe completo?')
                         .setRequired(true))
                 .addStringOption(option =>
                     option.setName('guild_name')
@@ -524,7 +520,6 @@ async function handleWager(interaction, client, globalConfig) {
         // Obter parâmetros
         const vencedor = interaction.options.getUser('vencedor');
         const perdedor = interaction.options.getUser('perdedor');
-        const isWipe = interaction.options.getBoolean('wipe');
         const guildName = interaction.options.getString('guild_name');
         
         // Validar usuários
@@ -565,12 +560,11 @@ async function handleWager(interaction, client, globalConfig) {
         const wagerData = {
             winnerId: vencedor.id,
             loserId: perdedor.id,
-            isWipe: isWipe,
             guildName: guildName
         };
         
         // Mostrar preview e confirmação
-        const previewEmbed = createWagerPreview(wagerData, vencedor, perdedor, isWipe);
+        const previewEmbed = createWagerPreview(wagerData, vencedor, perdedor);
         const confirmButtons = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
@@ -657,15 +651,12 @@ async function handleWager(interaction, client, globalConfig) {
  * @param {Object} wagerData - Dados do wager
  * @param {Object} vencedor - Usuário vencedor
  * @param {Object} perdedor - Usuário perdedor
- * @param {boolean} isWipe - Se foi um wipe
  * @returns {EmbedBuilder} Embed de preview
  */
-function createWagerPreview(wagerData, vencedor, perdedor, isWipe) {
-    const wipeText = isWipe ? ' (WIPE)' : '';
-    
+function createWagerPreview(wagerData, vencedor, perdedor) {
     const embed = new EmbedBuilder()
         .setColor('#FFD700')
-        .setTitle(`🎮 Preview do Wager${wipeText}`)
+        .setTitle(`🎮 Preview do Wager`)
         .setDescription(`Confirme o resultado do wager 1v1`)
         .addFields(
             {
@@ -694,11 +685,9 @@ function createWagerPreview(wagerData, vencedor, perdedor, isWipe) {
  * @returns {EmbedBuilder} Embed de sucesso
  */
 function createWagerSuccessEmbed(result, wagerData, vencedor, perdedor) {
-    const wipeText = wagerData.isWipe ? ' WIPE' : '';
-    
     const embed = new EmbedBuilder()
         .setColor('#00FF00')
-        .setTitle(`✅ Wager${wipeText} Processado!`)
+        .setTitle(`✅ Wager Processado!`)
         .setDescription(`<@${vencedor.id}> venceu <@${perdedor.id}>`)
         .addFields(
             {
