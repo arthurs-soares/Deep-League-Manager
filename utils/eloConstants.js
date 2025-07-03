@@ -28,42 +28,42 @@ const ELO_RANKS = {
         name: 'Rank D',
         min: 0,
         max: 299,
-        emoji: '🔸',
+        emoji: '<:rankD:1390356125232267294>',
         color: '#8B4513'
     },
     RANK_C: {
         name: 'Rank C',
         min: 300,
         max: 699,
-        emoji: '🥉',
+        emoji: '<:rankC:1390356122485129308>',
         color: '#CD7F32'
     },
     RANK_B: {
         name: 'Rank B',
         min: 700,
         max: 999,
-        emoji: '🥈',
+        emoji: '<:RankB:1390356119628677303>',
         color: '#C0C0C0'
     },
     RANK_A: {
         name: 'Rank A',
         min: 1000,
         max: 1499,
-        emoji: '🥇',
+        emoji: '<:RankA:1390356113446142085>',
         color: '#FFD700'
     },
     RANK_A_PLUS: {
         name: 'Rank A+',
         min: 1500,
         max: 1999,
-        emoji: '💎',
+        emoji: '<:RankAplus:1390356116071911485>',
         color: '#E5E4E2'
     },
     GRANDMASTER: {
         name: 'Grandmaster',
         min: 2000,
         max: Infinity,
-        emoji: '👑',
+        emoji: '<:RankG:1390356129330102375>',
         color: '#FF1493'
     }
 };
@@ -123,7 +123,7 @@ const ELO_BASE_VALUES = {
  * Configurações gerais do sistema
  */
 const ELO_CONFIG = {
-    STARTING_ELO: 800,  // Atualizado para 1000 para corresponder ao defaultProfile
+    STARTING_ELO: 700,  // ELO base inicial para novos jogadores
     MIN_ELO: 0,
     MAX_ELO: 3000,
     COOLDOWN_HOURS: 0, // Desabilitado - sem cooldown

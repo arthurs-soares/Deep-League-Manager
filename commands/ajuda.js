@@ -7,13 +7,24 @@ const commandDetails = {
     'guilda-painel': {
         emoji: '🎛️',
         name: 'guilda-painel',
-        description: 'Abre um painel interativo para gerenciar sua guilda. Permite editar perfil, gerenciar membros com opções de `Adicionar em Massa`, `Editar por Slot` e `Gerenciamento Direto`, além de controlar a liderança.', 
+        description: 'Abre um painel interativo para gerenciar sua guilda. Permite editar perfil, gerenciar membros com opções de `Adicionar em Massa`, `Editar por Slot` e `Gerenciamento Direto`, além de controlar a liderança.',
         permission: '🟡 Líderes, Vice-Líderes de Guilda e Moderadores',
         usage: '`/guilda-painel [guilda: Nome da Guilda (Mods)]`',
         examples: [
             '`/guilda-painel` - Acesse seu painel pessoal (se for líder/vice-líder).',
             '`/guilda-painel guilda: Minha Guilda` - Moderadores podem abrir o painel de qualquer guilda.',
             'As ações são feitas por botões interativos dentro do painel.'
+        ],
+    },
+    'time-painel': {
+        emoji: '⚽',
+        name: 'time-painel',
+        description: 'Abre o painel de gerenciamento do seu time. Permite editar perfil do time e gerenciar roster de membros.',
+        permission: '🟡 Líderes de Time e Moderadores',
+        usage: '`/time-painel [time: Nome do Time (Mods)]`',
+        examples: [
+            '`/time-painel` - Acesse seu painel pessoal (se for líder de time).',
+            '`/time-painel time: Meu Time` - Moderadores podem abrir o painel de qualquer time.',
         ],
     },
     'registrar': {
@@ -87,6 +98,50 @@ const commandDetails = {
             '`/visualizar guilda: Os Imortais` - Mostra o perfil detalhado da guilda "Os Imortais".'
         ],
     },
+    'perfil': {
+        emoji: '👤',
+        name: 'perfil',
+        description: 'Mostra seu perfil completo com informações de guilda, time, ELO e estatísticas.',
+        permission: '🟢 Todos os Usuários',
+        usage: '`/perfil [usuario: @usuário]`',
+        options: [
+            { name: 'usuario', description: 'Opcional. Usuário para visualizar o perfil. Deixe em branco para ver o seu.' }
+        ],
+        examples: [
+            '`/perfil` - Mostra seu próprio perfil.',
+            '`/perfil usuario: @Jogador` - Mostra o perfil de outro jogador.'
+        ],
+    },
+    'elo-stats': {
+        emoji: '📊',
+        name: 'elo-stats',
+        description: 'Ver estatísticas detalhadas de ELO de um jogador, incluindo rank, histórico e performance.',
+        permission: '🟢 Todos os Usuários',
+        usage: '`/elo-stats [usuario: @usuário]`',
+        options: [
+            { name: 'usuario', description: 'Opcional. Usuário para ver estatísticas. Deixe em branco para ver o seu.' }
+        ],
+        examples: [
+            '`/elo-stats` - Mostra suas estatísticas de ELO.',
+            '`/elo-stats usuario: @Jogador` - Mostra as estatísticas de ELO de outro jogador.'
+        ],
+    },
+    'ranking-elo': {
+        emoji: '🏆',
+        name: 'ranking-elo',
+        description: 'Ver rankings de ELO por categoria de rank, com opções de filtro e paginação.',
+        permission: '🟢 Todos os Usuários',
+        usage: '`/ranking-elo [rank: categoria] [limite: número] [pagina: número]`',
+        options: [
+            { name: 'rank', description: 'Opcional. Filtrar por categoria de rank específica.' },
+            { name: 'limite', description: 'Opcional. Número de jogadores por página (padrão: 10).' },
+            { name: 'pagina', description: 'Opcional. Página do ranking (padrão: 1).' }
+        ],
+        examples: [
+            '`/ranking-elo` - Mostra o ranking geral de ELO.',
+            '`/ranking-elo rank: Diamante` - Mostra apenas jogadores do rank Diamante.'
+        ],
+    },
     'enviar': {
         emoji: '📤',
         name: 'enviar',
@@ -118,6 +173,43 @@ const commandDetails = {
             '`/setscore guilda: NascidosParaPerder vitorias: 0 derrotas: 10` - Define um score inicial.'
         ],
     },
+    // --- Comandos de Gerenciamento de ELO (Score Operators) ---
+    'elo-partida': {
+        emoji: '⚔️',
+        name: 'elo-partida',
+        description: 'Processar resultado de partida ranqueada e aplicar mudanças de ELO automaticamente.',
+        permission: '🔴 Apenas Score Operators',
+        usage: '`/elo-partida finalizar resultado: [2-0/2-1/1-2/0-2] time_vencedor: [nome] mvp_vencedor: [@usuário] time_perdedor: [nome] mvp_perdedor: [@usuário]`',
+        options: [
+            { name: 'resultado', description: 'Resultado da partida (2-0, 2-1, 1-2, 0-2).' },
+            { name: 'time_vencedor', description: 'Nome do time/guilda vencedor.' },
+            { name: 'mvp_vencedor', description: 'MVP do time vencedor.' },
+            { name: 'time_perdedor', description: 'Nome do time/guilda perdedor.' },
+            { name: 'mvp_perdedor', description: 'MVP do time perdedor.' }
+        ],
+        examples: [
+            '`/elo-partida finalizar resultado: 2-1 time_vencedor: Time A mvp_vencedor: @Jogador1 time_perdedor: Time B mvp_perdedor: @Jogador2`'
+        ],
+    },
+    'elo-gerenciar': {
+        emoji: '🎛️',
+        name: 'elo-gerenciar',
+        description: 'Gerenciamento manual de ELO dos jogadores com subcomandos para adicionar, remover, definir, resetar e ver histórico.',
+        permission: '🔴 Apenas Score Operators',
+        usage: '`/elo-gerenciar [adicionar/remover/definir/resetar/historico/reverter] usuario: [@usuário] [pontos/elo_novo] [razao]`',
+        options: [
+            { name: 'subcomando', description: 'Ação a ser realizada (adicionar, remover, definir, resetar, historico, reverter).' },
+            { name: 'usuario', description: 'Usuário alvo da operação.' },
+            { name: 'pontos', description: 'Pontos para adicionar/remover (1-500).' },
+            { name: 'elo_novo', description: 'Novo valor de ELO para definir.' },
+            { name: 'razao', description: 'Razão da mudança (opcional).' }
+        ],
+        examples: [
+            '`/elo-gerenciar adicionar usuario: @Jogador pontos: 50 razao: Vitória em torneio`',
+            '`/elo-gerenciar resetar usuario: @Jogador` - Reseta ELO para 1000.'
+        ],
+    },
+
     // --- Comandos de Configuração e Utilitários ---
     'definir-canal': {
         emoji: '⚙️',
@@ -167,6 +259,87 @@ const commandDetails = {
         examples: [
             '`/ajuda` - Mostra o painel principal de ajuda com categorias e um menu de seleção.',
             '`/ajuda comando: registrar` - Mostra detalhes específicos sobre o comando `/registrar` e suas opções.'
+        ],
+    },
+    'perfil-editar': {
+        emoji: '✏️',
+        name: 'perfil-editar',
+        description: 'Edite seu perfil público, incluindo biografia e banner personalizado.',
+        permission: '🟢 Todos os Usuários',
+        usage: '`/perfil-editar [bio/banner] [texto/url]`',
+        options: [
+            { name: 'bio', description: 'Define ou limpa sua biografia pessoal (até 150 caracteres).' },
+            { name: 'banner', description: 'Define ou limpa seu banner de perfil (URL da imagem).' }
+        ],
+        examples: [
+            '`/perfil-editar bio texto: Jogador competitivo de Deep League` - Define biografia.',
+            '`/perfil-editar banner url: https://exemplo.com/banner.png` - Define banner personalizado.'
+        ],
+    },
+    'registrar-time': {
+        emoji: '⚽',
+        name: 'registrar-time',
+        description: 'Registra um novo time no sistema com um líder designado.',
+        permission: '🔴 Apenas Moderadores',
+        usage: '`/registrar-time nome: [Nome do Time] lider: [@usuário]`',
+        options: [
+            { name: 'nome', description: 'O nome exato do novo time (único no sistema).' },
+            { name: 'lider', description: 'O @ do líder do time.' }
+        ],
+        examples: [
+            '`/registrar-time nome: Dragões de Ferro lider: @LíderDoTime` - Registra novo time.'
+        ],
+    },
+    'deletar-time': {
+        emoji: '🗑️',
+        name: 'deletar-time',
+        description: 'Deleta um time do sistema (ação irreversível).',
+        permission: '🔴 Apenas Moderadores',
+        usage: '`/deletar-time time: [Nome do Time]`',
+        options: [
+            { name: 'time', description: 'Nome do time para deletar.' }
+        ],
+        examples: [
+            '`/deletar-time time: Time Antigo` - Remove permanentemente o time do sistema.'
+        ],
+    },
+    'enviar': {
+        emoji: '📤',
+        name: 'enviar',
+        description: 'Envia uma guilda no canal configurado ou cria/atualiza seu post no fórum.',
+        permission: '🔴 Apenas Moderadores',
+        usage: '`/enviar guilda: [Nome da Guilda] [canal-alvo: #canal]`',
+        options: [
+            { name: 'guilda', description: 'Nome da guilda para enviar.' },
+            { name: 'canal-alvo', description: 'Opcional. Canal de texto para enviar o card.' }
+        ],
+        examples: [
+            '`/enviar guilda: Os Imortais` - Envia no canal/fórum configurado.',
+            '`/enviar guilda: Os Imortais canal-alvo: #guildas` - Envia em canal específico.'
+        ],
+    },
+    'add': {
+        emoji: '➕',
+        name: 'add',
+        description: 'Adiciona usuários à thread atual (até 5 usuários por comando).',
+        permission: '🟢 Todos os Usuários',
+        usage: '`/add usuario1: [@usuário] [usuario2: @usuário] [...]`',
+        options: [
+            { name: 'usuario1', description: 'Primeiro usuário a adicionar à thread.' },
+            { name: 'usuario2-5', description: 'Usuários adicionais (opcional).' }
+        ],
+        examples: [
+            '`/add usuario1: @Jogador1 usuario2: @Jogador2` - Adiciona múltiplos usuários à thread.'
+        ],
+    },
+    'painel-ranking': {
+        emoji: '🏆',
+        name: 'painel-ranking',
+        description: 'Cria o painel de ranking global de guildas no canal atual.',
+        permission: '🔴 Apenas Administradores',
+        usage: '`/painel-ranking`',
+        examples: [
+            '`/painel-ranking` - Cria o painel de ranking no canal atual.'
         ],
     },
     'resetar-cooldown': {
@@ -240,21 +413,33 @@ module.exports = {
         }
 
         const mainEmbed = new EmbedBuilder()
-            .setTitle('🤖 Central de Ajuda do Bot de Guildas')
+            .setTitle('🤖 Central de Ajuda do Deep League Manager')
             .setColor('#3498DB')
-            .setDescription('Bem-vindo! Aqui estão todos os comandos disponíveis para gerenciar e visualizar as guildas. Selecione um comando no menu abaixo para obter mais detalhes.')
+            .setDescription('Bem-vindo! Aqui estão todos os comandos disponíveis para gerenciar guildas, times e o sistema de ELO. Selecione um comando no menu abaixo para obter mais detalhes.')
             .addFields(
-                { 
-                    name: '🏰 Gerenciamento de Guilda (Líderes/Mods)', 
-                    value: '`/guilda-painel`, `/registrar`, `/editar`, `/deletar`, `/setscore`' 
+                {
+                    name: '🏰 Gerenciamento de Guilda (Líderes/Mods)',
+                    value: '`/guilda-painel`, `/registrar`, `/editar`, `/deletar`, `/setscore`'
                 },
-                { 
-                    name: '⚙️ Configuração (Mods/Admin)', 
-                    value: '`/definir-canal`, `/definir-forum-rosters`, `/enviar`, `/resetar-cooldown`' 
-                }, 
-                { 
-                    name: '✨ Geral (Todos)', 
-                    value: '`/visualizar`, `/ping`, `/ajuda`' 
+                {
+                    name: '⚽ Gerenciamento de Times (Líderes/Mods)',
+                    value: '`/time-painel`, `/registrar-time`, `/deletar-time`'
+                },
+                {
+                    name: '👤 Perfil e Estatísticas (Todos)',
+                    value: '`/perfil`, `/elo-stats`, `/ranking-elo`, `/perfil-editar`'
+                },
+                {
+                    name: '⚔️ Sistema de ELO (Score Operators)',
+                    value: '`/elo-partida`, `/elo-gerenciar`'
+                },
+                {
+                    name: '⚙️ Configuração (Mods/Admin)',
+                    value: '`/definir-canal`, `/definir-forum-rosters`, `/enviar`, `/painel-ranking`, `/resetar-cooldown`'
+                },
+                {
+                    name: '✨ Geral (Todos)',
+                    value: '`/visualizar`, `/add`, `/ping`, `/ajuda`'
                 }
             )
             .setFooter({ text: 'Selecione um comando no menu para mais informações.' })

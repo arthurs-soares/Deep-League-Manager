@@ -29,12 +29,12 @@ O sistema de ELO foi **totalmente implementado** e está pronto para uso! Todos 
 
 | Rank | ELO Range | Emoji | Cor |
 |------|-----------|--------|-----|
-| **Rank D** | 0 - 299 | 🔸 | Marrom |
-| **Rank C** | 300 - 699 | 🥉 | Bronze |
-| **Rank B** | 700 - 999 | 🥈 | Prata |
-| **Rank A** | 1000 - 1499 | 🥇 | Ouro |
-| **Rank A+** | 1500 - 1999 | 💎 | Platina |
-| **Grandmaster** | 2000+ | 👑 | Rosa |
+| **Rank D** | 0 - 299 | <:rankD:1390356125232267294> | Marrom |
+| **Rank C** | 300 - 699 | <:rankC:1390356122485129308> | Bronze |
+| **Rank B** | 700 - 999 | <:RankB:1390356119628677303> | Prata |
+| **Rank A** | 1000 - 1499 | <:RankA:1390356113446142085> | Ouro |
+| **Rank A+** | 1500 - 1999 | <:RankAplus:1390356116071911485> | Platina |
+| **Grandmaster** | 2000+ | <:RankG:1390356129330102375> | Rosa |
 
 ## 🏆 Sistema de Pontuação
 

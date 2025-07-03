@@ -10,12 +10,12 @@ O sistema de ELO será implementado como uma extensão do sistema atual de pontu
 
 | Rank | ELO Range | Emoji | Cor |
 |------|-----------|--------|-----|
-| **Rank D** | 0 - 299 | 🔸 | `#8B4513` |
-| **Rank C** | 300 - 699 | 🥉 | `#CD7F32` |
-| **Rank B** | 700 - 999 | 🥈 | `#C0C0C0` |
-| **Rank A** | 1000 - 1499 | 🥇 | `#FFD700` |
-| **Rank A+** | 1500 - 1999 | 💎 | `#E5E4E2` |
-| **Grandmaster** | 2000+ | 👑 | `#FF1493` |
+| **Rank D** | 0 - 299 | <:rankD:1390356125232267294> | `#8B4513` |
+| **Rank C** | 300 - 699 | <:rankC:1390356122485129308> | `#CD7F32` |
+| **Rank B** | 700 - 999 | <:RankB:1390356119628677303> | `#C0C0C0` |
+| **Rank A** | 1000 - 1499 | <:RankA:1390356113446142085> | `#FFD700` |
+| **Rank A+** | 1500 - 1999 | <:RankAplus:1390356116071911485> | `#E5E4E2` |
+| **Grandmaster** | 2000+ | <:RankG:1390356129330102375> | `#FF1493` |
 
 ## **3. Sistema de Cálculo de ELO**
 
@@ -62,8 +62,8 @@ const ELO_MULTIPLIERS = {
     personalScore: { wins: 0, losses: 0 },
     // NOVO: Sistema de ELO
     eloData: {
-        currentElo: 1000,        // ELO atual (iniciando em 1000 - Rank A)
-        peakElo: 1000,          // Maior ELO já alcançado
+        currentElo: 700,        // ELO atual (iniciando em 700 - Rank B)
+        peakElo: 700,          // Maior ELO já alcançado
         eloHistory: [],         // Histórico de mudanças
         mvpCount: 0,            // Número total de MVPs
         flawlessWins: 0,        // Número de vitórias flawless
@@ -168,12 +168,12 @@ flowchart TD
 ```javascript
 // Função para determinar rank baseado no ELO
 function getEloRank(elo) {
-    if (elo >= 2000) return { name: 'Grandmaster', emoji: '👑', color: '#FF1493' };
-    if (elo >= 1500) return { name: 'Rank A+', emoji: '💎', color: '#E5E4E2' };
-    if (elo >= 1000) return { name: 'Rank A', emoji: '🥇', color: '#FFD700' };
-    if (elo >= 700) return { name: 'Rank B', emoji: '🥈', color: '#C0C0C0' };
-    if (elo >= 300) return { name: 'Rank C', emoji: '🥉', color: '#CD7F32' };
-    return { name: 'Rank D', emoji: '🔸', color: '#8B4513' };
+    if (elo >= 2000) return { name: 'Grandmaster', emoji: '<:RankG:1390356129330102375>', color: '#FF1493' };
+    if (elo >= 1500) return { name: 'Rank A+', emoji: '<:RankAplus:1390356116071911485>', color: '#E5E4E2' };
+    if (elo >= 1000) return { name: 'Rank A', emoji: '<:RankA:1390356113446142085>', color: '#FFD700' };
+    if (elo >= 700) return { name: 'Rank B', emoji: '<:RankB:1390356119628677303>', color: '#C0C0C0' };
+    if (elo >= 300) return { name: 'Rank C', emoji: '<:rankC:1390356122485129308>', color: '#CD7F32' };
+    return { name: 'Rank D', emoji: '<:rankD:1390356125232267294>', color: '#8B4513' };
 }
 
 // Adição de campo ELO no embed do perfil

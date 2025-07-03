@@ -4,10 +4,10 @@ Este documento explica como atualizar o ELO base de todos os usuários no sistem
 
 ## 📋 Visão Geral
 
-O sistema de ELO do Deep League Manager foi configurado para usar um valor base de **1000 pontos** para todos os jogadores. Esta atualização garante que:
+O sistema de ELO do Deep League Manager foi configurado para usar um valor base de **700 pontos** para todos os jogadores. Esta atualização garante que:
 
 1. O valor de ELO inicial seja consistente em todo o sistema
-2. Todos os jogadores comecem no mesmo nível (Rank A)
+2. Todos os jogadores comecem no mesmo nível (Rank B)
 3. A progressão seja justa e equilibrada para todos
 
 ## 🛠️ Métodos de Atualização
@@ -60,7 +60,7 @@ Quando executada, a atualização:
 ## ⚠️ Considerações Importantes
 
 - A atualização **não afeta** o histórico de partidas anteriores
-- Todos os jogadores terão seu ELO atual definido como 1000, independentemente do valor anterior
+- Todos os jogadores terão seu ELO atual definido como 700, independentemente do valor anterior
 - Esta operação não pode ser desfeita automaticamente
 - Recomenda-se fazer um backup do banco de dados antes de executar a atualização
 

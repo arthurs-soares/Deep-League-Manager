@@ -254,12 +254,12 @@ async function createStatsEmbed(rankFilter) {
         .setTitle('📊 Estatísticas de Ranking')
         .setDescription('Distribuição de jogadores por rank')
         .addFields(
-            { name: '🔸 Rank D', value: `${stats.rankD} jogadores`, inline: true },
-            { name: '🥉 Rank C', value: `${stats.rankC} jogadores`, inline: true },
-            { name: '🥈 Rank B', value: `${stats.rankB} jogadores`, inline: true },
-            { name: '🥇 Rank A', value: `${stats.rankA} jogadores`, inline: true },
-            { name: '💎 Rank A+', value: `${stats.rankAPlus} jogadores`, inline: true },
-            { name: '👑 Grandmaster', value: `${stats.grandmaster} jogadores`, inline: true }
+            { name: '<:rankD:1390356125232267294> Rank D', value: `${stats.rankD} jogadores`, inline: true },
+            { name: '<:rankC:1390356122485129308> Rank C', value: `${stats.rankC} jogadores`, inline: true },
+            { name: '<:RankB:1390356119628677303> Rank B', value: `${stats.rankB} jogadores`, inline: true },
+            { name: '<:RankA:1390356113446142085> Rank A', value: `${stats.rankA} jogadores`, inline: true },
+            { name: '<:RankAplus:1390356116071911485> Rank A+', value: `${stats.rankAPlus} jogadores`, inline: true },
+            { name: '<:RankG:1390356129330102375> Grandmaster', value: `${stats.grandmaster} jogadores`, inline: true }
         )
         .setTimestamp();
     
