@@ -1,0 +1,79 @@
+{
+  "moderatorRoles": [
+    "1348060399219773440",
+    "1274456218794070044",
+    "1353770746660524123"
+  ],
+  "scoreOperatorRoles": [
+    "1358557290835218534",
+    "1274456218794070042",
+    "1341162654374297630"
+  ],
+  "embedColor": "#0099ff",
+  "botName": "Deep League Manager",
+  "guildLeaderRoleId": "1274456218756448281",
+  "guildCoLeaderRoleId": "1354091407480062065",
+  "logChannelId": "1381049761821495366",
+  "recentlyLeftUsers": [
+    {
+      "userId": "328945813067661312",
+      "leaveTimestamp": "2025-06-27T17:52:45.306Z"
+    },
+    {
+      "userId": "1022333243959283742",
+      "leaveTimestamp": "2025-06-27T17:52:54.908Z"
+    },
+    {
+      "userId": "771768777741959238",
+      "leaveTimestamp": "2025-06-27T17:53:02.712Z"
+    },
+    {
+      "userId": "540752564359266305",
+      "leaveTimestamp": "2025-06-27T17:53:09.523Z"
+    },
+    {
+      "userId": "769543718373294090",
+      "leaveTimestamp": "2025-06-27T17:53:09.523Z"
+    },
+    {
+      "userId": "846129132379439184",
+      "leaveTimestamp": "2025-06-27T17:53:09.523Z"
+    },
+    {
+      "userId": "1105472106730377246",
+      "leaveTimestamp": "2025-06-27T17:53:09.523Z"
+    },
+    {
+      "userId": "100000000000000001",
+      "leaveTimestamp": "2025-06-27T18:04:56.936Z"
+    },
+    {
+      "userId": "100000000000000002",
+      "leaveTimestamp": "2025-06-27T18:04:56.936Z"
+    },
+    {
+      "userId": "884613696658243594",
+      "leaveTimestamp": "2025-06-28T21:57:08.486Z"
+    },
+    {
+      "userId": "738886209849524285",
+      "leaveTimestamp": "2025-06-30T15:48:37.844Z"
+    },
+    {
+      "userId": "1291064366078103612",
+      "leaveTimestamp": "2025-06-30T16:31:18.808Z"
+    }
+  ],
+  "warTicketChannelId": "1381127424485621831",
+  "warTicketPanelMessageId": "",
+  "rankingChannelId": "1386151023864975431",
+  "rankingMessageId": "1387431725839155274",
+  "dodgeLogChannelId": "1368337347409870939",
+  "guildRosterForumChannelId": "1382070300686024715",
+  "guildViewChannel": "1274456220018802731",
+  "leaderboard": {
+    "channelId": "1351319262068998164",
+    "messageId": "1380651300898996437"
+  },
+  "_id": "global_config"
+}
